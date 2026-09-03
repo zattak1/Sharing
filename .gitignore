@@ -1,0 +1,3 @@
+# install.php creates and chmods this at install time; nothing in it is source.
+files/*
+!files/.gitkeep

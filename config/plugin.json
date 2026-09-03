@@ -1,0 +1,82 @@
+{
+	"Q": {
+		"pluginInfo": {
+			"Sharing": {
+				"version": "0.1",
+				"compatible": "0.1",
+				"requires": {
+					"Q": "1.0",
+					"Users": "1.0",
+					"Streams": "1.0",
+					"Places": "1.0",
+					"Calendars": "0.1"
+				},
+				"connections": []
+			}
+		},
+		"handlersBeforeEvent": {
+			"Q/responseExtras": ["Sharing/before/Q_responseExtras"]
+		},
+		/*
+			routes@end on purpose: a host app's ":action" catch-all is tried
+			first and only falls through (Communities/moduleCanHandle) when the
+			app module has no such handler, which is what lets "sharing" reach
+			this plugin without the app declaring anything. See
+			docs/qbix-gotchas.md "Two routes, one action" in the ro repo.
+		*/
+		"routes@end": {
+			"sharing": {"module": "Sharing", "action": "resources"}
+		}
+	},
+	"Sharing": {
+		/*
+			Who may offer a resource and who may request one. Checked with
+			Users::roles() against the current community; the host app
+			overrides these lists in its own app.json. Guests are in neither
+			by design: they can browse but not transact. Values are
+			interpolated with {{app}} so an app can name its own roles.
+		*/
+		"labels": {
+			"canOffer": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
+			"canRequest": ["Users/owners", "Users/admins", "Users/members"]
+		}
+	},
+	"Streams": {
+		"types": {
+			/*
+				readLevel 30 = Streams::$READ_LEVEL['participants'],
+				writeLevel 23 = Streams::$WRITE_LEVEL['relate']: members can see
+				a resource and relate a booking to it; only the publisher edits.
+				Config cannot hold the named constants, so the numbers are
+				annotated here and code must use the names.
+			*/
+			"Sharing/resource": {
+				"emoji": "🤝",
+				"create": true,
+				"close": true,
+				"edit": ["title", "content", "attributes"],
+				"defaults": {
+					"title": "Untitled resource",
+					"readLevel": 30,
+					"writeLevel": 23,
+					"adminLevel": 0
+				}
+			},
+			"Sharing/booking": {
+				"emoji": "📅",
+				"create": true,
+				"close": false,
+				"edit": ["attributes"],
+				"defaults": {
+					"title": "Booking",
+					"readLevel": 0,
+					"writeLevel": 0,
+					"adminLevel": 0
+				},
+				"messages": {
+					"Streams/chat/message": {"post": true}
+				}
+			}
+		}
+	}
+}
