@@ -105,6 +105,20 @@ abstract class Sharing
 	}
 
 	/**
+	 * Url of a plugin page by path. Path-based on purpose: Q_Uri::url() wants
+	 * module/action form and would generate the API route (routes@start) for
+	 * these actions.
+	 * @method url
+	 * @static
+	 * @param {string} $path e.g. "sharing" or "sharing/<publisherId>/<name>"
+	 * @return {string}
+	 */
+	static function url($path)
+	{
+		return Q_Request::baseUrl() . '/' . ltrim($path, '/');
+	}
+
+	/**
 	 * The community whose labels gate sharing: the current one.
 	 * @method communityId
 	 * @static

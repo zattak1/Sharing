@@ -18,6 +18,16 @@
 			"Q/responseExtras": ["Sharing/before/Q_responseExtras"]
 		},
 		/*
+			The API endpoints, the way Places declares its own: routes@start
+			wins url generation (Q_Uri::url walks the blocks start, routes,
+			end, each reversed), so Q.req("Sharing/listing") posts to
+			Q/plugins/Sharing/listing while the pretty page routes below still
+			match inbound.
+		*/
+		"routes@start": {
+			"Q/plugins/Sharing/:action": {"module": "Sharing"}
+		},
+		/*
 			routes@end on purpose: a host app's ":action" catch-all is tried
 			first and only falls through (Communities/moduleCanHandle) when the
 			app module has no such handler, which is what lets "sharing" reach
@@ -27,8 +37,8 @@
 		"routes@end": {
 			"sharing": {"module": "Sharing", "action": "listings"},
 			"sharing/engagements": {"module": "Sharing", "action": "engagements"},
-			"sharing/engagement/:publisherId/:streamName": {"module": "Sharing", "action": "engagement"},
-			"sharing/:publisherId/:streamName": {"module": "Sharing", "action": "listing"}
+			"sharing/engagement/:publisherId/:engagementId": {"module": "Sharing", "action": "engagement"},
+			"sharing/:publisherId/:listingId": {"module": "Sharing", "action": "listing"}
 		}
 	},
 	"Sharing": {

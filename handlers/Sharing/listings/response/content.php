@@ -1,12 +1,24 @@
 <?php
 /**
- * The listing page at /sharing. Slice 2 renders the empty state; slice 3
- * replaces the body with the Sharing/listings tool over the community's
- * Sharing/listings/main category.
+ * GET /sharing — the listing page. ?direction=offer|need filters; the
+ * default shows both.
  */
-function Sharing_listings_response_content()
+function Sharing_listings_response_content($params)
 {
+	$params = array_merge($_REQUEST, $params);
+	$user = Users::loggedInUser(false, false);
+	$asUserId = $user ? $user->id : null;
+	$direction = Q::ifset($params, 'direction', null);
+	if (!in_array($direction, Sharing_Listing::$directions, true)) {
+		$direction = null;
+	}
 	$gates = Sharing::gates();
-	$loggedIn = (bool)Users::loggedInUser(false, false);
-	return Q::view('Sharing/content/listings.php', @compact('gates', 'loggedIn'));
+	$loggedIn = (bool)$user;
+	$listings = array_map(
+		array('Sharing_Listing', 'export'),
+		Sharing_Listing::fetchAll($asUserId, @compact('direction'))
+	);
+	return Q::view('Sharing/content/listings.php', @compact(
+		'gates', 'loggedIn', 'direction', 'listings'
+	));
 }

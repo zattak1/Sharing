@@ -3,9 +3,52 @@
 		"Title": "Sharing",
 		"Intro": "Borrow what members are offering, lend something of your own, or ask for a hand.",
 		"Post": "Post a listing",
-		"PostSoon": "Coming soon",
+		"All": "All",
+		"Offers": "Offers",
+		"Needs": "Needs",
 		"Empty": "No offers or needs have been posted yet.",
+		"EmptyDirection": {
+			"offer": "Nothing is being offered yet.",
+			"need": "Nobody has asked for help yet."
+		},
 		"LogInToRespond": "Log in to respond to a listing.",
 		"CannotRespond": "Your role in this community does not allow responding to listings yet."
+	},
+	"listing": {
+		"Back": "All listings",
+		"Area": "Where",
+		"Exclusive": "One at a time",
+		"Custody": "Changes hands",
+		"Paused": "Paused",
+		"PrivateHeading": "Private details (only you and accepted responders see these)",
+		"PrivateNone": "You did not add any private details.",
+		"RespondSoon": "Coming soon",
+		"NotFound": "That listing does not exist or you cannot see it.",
+		"direction": {"offer": "Offer", "need": "Need"},
+		"kind": {"item": "Item", "service": "Service"},
+		"respond": {"offer": "Request this", "need": "I can help"}
+	},
+	"composer": {
+		"Title": "Post a listing",
+		"Direction": "What is this?",
+		"direction": {
+			"offer": "I have something to share",
+			"need": "I need something"
+		},
+		"Kind": "Kind",
+		"kind": {"item": "An item", "service": "A service or some help"},
+		"TitleLabel": "Title",
+		"TitlePlaceholder": "e.g. Projector, or Help moving a sofa",
+		"Content": "Details",
+		"ContentPlaceholder": "What is it, what condition, any conditions of use",
+		"Area": "Where (public)",
+		"AreaPlaceholder": "Neighbourhood or venue, not your address",
+		"Exclusive": "Only one person can have it at a time",
+		"Custody": "It physically changes hands",
+		"Private": "Private details",
+		"PrivateHint": "Address, door code, handoff instructions. Only you and responders you accept will see this.",
+		"Submit": "Post",
+		"Posting": "Posting…",
+		"TitleRequired": "Please give it a title."
 	}
 }
