@@ -1,7 +1,7 @@
 <?php
 /**
  * One listing. Variables: $listing, $isPublisher, $privateInstructions,
- * $canRespond, $user.
+ * $canRespond, $user, $myEngagement, $myAllowed, $engagements, $openToResponses.
  */
 $text = Q_Text::get('Sharing/content');
 $t = $text['listing'];
@@ -40,9 +40,37 @@ $kind = $listing['kind'];
 				<p class="Sharing_muted"><?php echo Q_Html::text($t['PrivateNone']) ?></p>
 			<?php endif ?>
 		</div>
-	<?php elseif ($canRespond): ?>
-		<button class="Q_button Sharing_respond_button" disabled title="<?php echo Q_Html::text($t['RespondSoon']) ?>">
-			<?php echo Q_Html::text($t['respond'][$direction]) ?>
-		</button>
+		<div class="Sharing_listing_engagements">
+			<h3><?php echo Q_Html::text($t['Responses']) ?></h3>
+			<?php if (empty($engagements)): ?>
+				<p class="Sharing_muted"><?php echo Q_Html::text($t['ResponsesNone']) ?></p>
+			<?php else: foreach ($engagements as $row) {
+				echo Q::view('Sharing/engagement/row.php', array(
+					'engagement' => $row['engagement'], 'allowed' => $row['allowed'],
+					'text' => $text, 'showResponder' => true
+				));
+			} endif ?>
+			<div class="Sharing_transition_error" hidden></div>
+		</div>
+	<?php elseif ($myEngagement): ?>
+		<div class="Sharing_listing_mine">
+			<h3><?php echo Q_Html::text($t['YourResponse']) ?></h3>
+			<?php echo Q::view('Sharing/engagement/row.php', array(
+				'engagement' => $myEngagement, 'allowed' => $myAllowed, 'text' => $text
+			)) ?>
+			<div class="Sharing_transition_error" hidden></div>
+		</div>
+	<?php elseif ($openToResponses): ?>
+		<form class="Sharing_respond_form">
+			<h3><?php echo Q_Html::text($t['respond'][$direction]) ?></h3>
+			<label><?php echo Q_Html::text($t['Note']) ?>
+				<textarea name="note" rows="3" placeholder="<?php echo Q_Html::text($t['NotePlaceholder'][$direction]) ?>"></textarea></label>
+			<?php if (!$listing['exclusive']): ?>
+				<label><?php echo Q_Html::text($t['Quantity']) ?> <input type="number" name="quantity" value="1" min="1" max="20"></label>
+			<?php endif ?>
+			<div class="Sharing_respond_error" hidden></div>
+			<button type="submit" class="Q_button Sharing_respond_button"><?php echo Q_Html::text($t['respond'][$direction]) ?></button>
+		</form>
+	<?php elseif ($canRespond && $listing['paused']): ?>
+		<p class="Sharing_muted"><?php echo Q_Html::text($t['PausedNote']) ?></p>
 	<?php endif ?>
-</div>

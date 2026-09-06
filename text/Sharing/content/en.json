@@ -24,9 +24,28 @@
 		"PrivateNone": "You did not add any private details.",
 		"RespondSoon": "Coming soon",
 		"NotFound": "That listing does not exist or you cannot see it.",
-		"direction": {"offer": "Offer", "need": "Need"},
-		"kind": {"item": "Item", "service": "Service"},
-		"respond": {"offer": "Request this", "need": "I can help"}
+		"direction": {
+			"offer": "Offer",
+			"need": "Need"
+		},
+		"kind": {
+			"item": "Item",
+			"service": "Service"
+		},
+		"respond": {
+			"offer": "Request this",
+			"need": "I can help"
+		},
+		"Responses": "Responses",
+		"ResponsesNone": "Nobody has responded yet.",
+		"YourResponse": "Your response",
+		"Note": "Message",
+		"Quantity": "How many",
+		"NotePlaceholder": {
+			"offer": "When would you like it, and anything the owner should know",
+			"need": "How you can help, and when"
+		},
+		"PausedNote": "This listing is paused."
 	},
 	"composer": {
 		"Title": "Post a listing",
@@ -36,7 +55,10 @@
 			"need": "I need something"
 		},
 		"Kind": "Kind",
-		"kind": {"item": "An item", "service": "A service or some help"},
+		"kind": {
+			"item": "An item",
+			"service": "A service or some help"
+		},
 		"TitleLabel": "Title",
 		"TitlePlaceholder": "e.g. Projector, or Help moving a sofa",
 		"Content": "Details",
@@ -50,5 +72,40 @@
 		"Submit": "Post",
 		"Posting": "Posting…",
 		"TitleRequired": "Please give it a title."
+	},
+	"engagement": {
+		"Heading": "Engagement",
+		"heading": {
+			"offer": "Request",
+			"need": "Offer to help"
+		},
+		"NotFound": "That engagement does not exist or you cannot see it.",
+		"PrivateHeading": "Private details from the publisher",
+		"PrivateAfterAccept": "Once accepted, you will see the private details here.",
+		"state": {
+			"proposed": "Proposed",
+			"accepted": "Accepted",
+			"rejected": "Declined",
+			"cancelled": "Cancelled",
+			"active": "In progress",
+			"completed": "Completed"
+		},
+		"verb": {
+			"accept": "Accept",
+			"reject": "Decline",
+			"cancel": "Cancel",
+			"handOver": "Handed over",
+			"start": "Start",
+			"return": "Returned",
+			"complete": "Complete"
+		},
+		"Working": "…"
+	},
+	"engagements": {
+		"Title": "My sharing",
+		"Responded": "My responses",
+		"RespondedEmpty": "You have not responded to any listing yet.",
+		"Received": "Responses to my listings",
+		"ReceivedEmpty": "Nobody has responded to your listings yet."
 	}
 }

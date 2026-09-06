@@ -24,7 +24,22 @@ function Sharing_listing_response_content($params)
 	$private = $isPublisher ? Sharing_Listing::privateStream($stream, $asUserId) : null;
 	$privateInstructions = $private ? $private->getAttribute('instructions') : null;
 	$canRespond = $user && !$isPublisher && Sharing::canRespond($listing['direction'], $asUserId);
+	// The responder's own engagement, if any; the publisher's list of all.
+	$mine = ($user && !$isPublisher) ? Sharing_Engagement::ofResponder($stream, $asUserId) : null;
+	$myEngagement = $mine ? Sharing_Engagement::export($mine) : null;
+	$myAllowed = $mine ? Sharing_Engagement::allowed($asUserId, $mine, $stream) : array();
+	$engagements = array();
+	if ($isPublisher) {
+		foreach (Sharing_Engagement::forListing($stream) as $e) {
+			$engagements[] = array(
+				'engagement' => Sharing_Engagement::export($e),
+				'allowed' => Sharing_Engagement::allowed($asUserId, $e, $stream)
+			);
+		}
+	}
+	$openToResponses = $canRespond && !$mine && !$listing['paused'];
 	return Q::view('Sharing/content/listing.php', @compact(
-		'listing', 'isPublisher', 'privateInstructions', 'canRespond', 'user'
+		'listing', 'isPublisher', 'privateInstructions', 'canRespond', 'user',
+		'myEngagement', 'myAllowed', 'engagements', 'openToResponses'
 	));
 }

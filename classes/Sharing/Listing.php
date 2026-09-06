@@ -217,7 +217,7 @@ class Sharing_Listing
 		$streams = array();
 		foreach ($namesByPublisher as $publisherId => $names) {
 			foreach (Streams::fetch($asUserId, $publisherId, $names) as $stream) {
-				if ($stream) {
+				if ($stream and $stream->testReadLevel('content')) {
 					$streams[] = $stream;
 				}
 			}
@@ -249,8 +249,10 @@ class Sharing_Listing
 	 */
 	static function fetch($asUserId, $publisherId, $name)
 	{
+		// Streams::fetch returns the row regardless of access; test the
+		// reader's effective level here.
 		$stream = Streams_Stream::fetch($asUserId, $publisherId, $name);
-		if (!$stream or $stream->type !== self::TYPE) {
+		if (!$stream or $stream->type !== self::TYPE or !$stream->testReadLevel('content')) {
 			return null;
 		}
 		return $stream;

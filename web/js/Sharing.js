@@ -139,6 +139,97 @@ Sharing.Listing = {
 	}
 };
 
+Sharing.Engagement = {
+	/**
+	 * Respond to a listing through the same POST the form submits.
+	 * @method propose
+	 * @param {Object} fields publisherId, listingId, note, quantity
+	 */
+	propose: function (fields, callback) {
+		Q.req('Sharing/engagement', ['engagement'], function (err, data) {
+			var msg = Q.firstErrorMessage(err, data);
+			if (msg) {
+				return Q.handle(callback, Sharing, [msg]);
+			}
+			Q.handle(callback, Sharing, [null, data.slots.engagement]);
+		}, {method: 'post', fields: fields});
+	},
+	/**
+	 * Apply a lifecycle verb.
+	 * @method transition
+	 * @param {Object} fields publisherId, engagementId, transition
+	 */
+	transition: function (fields, callback) {
+		Q.req('Sharing/engagement', ['engagement'], function (err, data) {
+			var msg = Q.firstErrorMessage(err, data);
+			if (msg) {
+				return Q.handle(callback, Sharing, [msg]);
+			}
+			Q.handle(callback, Sharing, [null, data.slots.engagement]);
+		}, {method: 'put', fields: fields});
+	}
+};
+
+/**
+ * Wire every transition button inside a container: the button's row (or
+ * the page's own engagement element) carries the ids. Reloads the page on
+ * success so the server re-renders the new state and buttons.
+ */
+function bindTransitions() {
+	$('.Sharing_transition_button').on(Q.Pointer.fastclick, true, function () {
+		var $button = $(this);
+		var $holder = $button.closest('[data-engagementId]');
+		var $error = $button.closest('.Sharing_engagement, .Sharing_listing_engagements, .Sharing_listing_mine')
+			.find('.Sharing_transition_error').first();
+		$error.prop('hidden', true);
+		$button.prop('disabled', true);
+		Sharing.Engagement.transition({
+			publisherId: $holder.attr('data-publisherId'),
+			engagementId: $holder.attr('data-engagementId'),
+			transition: $button.attr('data-transition')
+		}, function (err) {
+			if (err) {
+				$button.prop('disabled', false);
+				$error.text(err).prop('hidden', false);
+				return;
+			}
+			Q.handle(window.location.href);
+		});
+		return false;
+	});
+}
+
+Q.page('Sharing/listing', function () {
+	bindTransitions();
+	$('form.Sharing_respond_form').on('submit', true, function (e) {
+		e.preventDefault();
+		var $form = $(this);
+		var $holder = $form.closest('[data-streamName]');
+		var $error = $form.find('.Sharing_respond_error');
+		var $submit = $form.find('.Sharing_respond_button');
+		$error.prop('hidden', true);
+		$submit.prop('disabled', true);
+		Sharing.Engagement.propose({
+			publisherId: $holder.attr('data-publisherId'),
+			listingId: $holder.attr('data-streamName').replace(/^Sharing\/listing\//, ''),
+			note: $form.find('textarea[name=note]').val(),
+			quantity: $form.find('input[name=quantity]').val() || 1
+		}, function (err, engagement) {
+			if (err) {
+				$submit.prop('disabled', false);
+				$error.text(err).prop('hidden', false);
+				return;
+			}
+			Q.handle(engagement.url);
+		});
+		return false;
+	});
+}, 'Sharing');
+
+Q.page('Sharing/engagement', function () {
+	bindTransitions();
+}, 'Sharing');
+
 /**
  * The listing page is server-rendered; this wires the post button to the
  * composer and navigates to the new listing. Bound with the `true` scope

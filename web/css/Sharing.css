@@ -59,3 +59,35 @@
 .Sharing_composer_private small { font-weight: normal; opacity: 0.75; }
 .Sharing_composer_private { padding: 10px; border-radius: 6px; background: rgba(219,109,40,0.12); }
 .Sharing_composer_error { color: #b3261e; }
+/* engagements */
+.Sharing_engagements { max-width: 720px; margin: 0 auto; padding: 16px; }
+.Sharing_engagements h2 { margin: 24px 0 8px; font-size: 1.1em; }
+.Sharing_engagement { max-width: 720px; margin: 0 auto; padding: 16px; }
+.Sharing_engagement_row {
+	display: flex; justify-content: space-between; align-items: center; gap: 12px;
+	padding: 10px 12px; margin: 8px 0; border: 1px solid rgba(128,128,128,0.35); border-radius: 8px;
+}
+.Sharing_engagement_row_main { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.Sharing_engagement_link { text-decoration: none; color: inherit; display: inline-flex; gap: 8px; align-items: center; }
+.Sharing_engagement_note { opacity: 0.8; font-size: 0.9em; flex-basis: 100%; }
+.Sharing_state_chip {
+	display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.8em;
+	background: rgba(128,128,128,0.2);
+}
+.Sharing_state_accepted .Sharing_state_chip, .Sharing_state_active .Sharing_state_chip { background: rgba(46,160,67,0.3); }
+.Sharing_state_rejected .Sharing_state_chip, .Sharing_state_cancelled .Sharing_state_chip { background: rgba(179,38,30,0.2); }
+.Sharing_state_completed .Sharing_state_chip { background: rgba(60,120,220,0.25); }
+.Sharing_engagement_actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.Sharing_transition_error, .Sharing_respond_error { color: #b3261e; margin-top: 8px; }
+.Sharing_engagement_parties { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.Sharing_engagement_note { margin: 12px 0; padding-left: 12px; border-left: 3px solid rgba(128,128,128,0.4); }
+.Sharing_engagement_private {
+	margin-top: 20px; padding: 12px 16px; border-radius: 8px;
+	background: rgba(128,128,128,0.12); border-left: 4px solid rgba(46,160,67,0.8);
+}
+.Sharing_engagement_private h3 { margin: 0 0 8px; font-size: 0.95em; }
+.Sharing_engagement_chat { margin-top: 24px; }
+.Sharing_respond_form { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.Sharing_respond_form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+.Sharing_respond_form textarea, .Sharing_respond_form input { font: inherit; font-weight: normal; padding: 8px; }
+.Sharing_listing_engagements, .Sharing_listing_mine { margin-top: 20px; }
