@@ -19,37 +19,27 @@
 			"Streams/close/Sharing/listing": ["Sharing/before/Streams_close_Sharing_listing"]
 		},
 		/*
-			The API endpoints, the way Places declares its own: routes@start
-			wins url generation (Q_Uri::url walks the blocks start, routes,
-			end, each reversed), so Q.req("Sharing/listing") posts to
-			Q/plugins/Sharing/listing while the pretty page routes below still
-			match inbound.
-		*/
-		"routes@start": {
-			"Q/plugins/Sharing/:action": {"module": "Sharing"}
-		},
-		/*
-			routes@end on purpose: a host app's ":action" catch-all is tried
-			first and only falls through (Communities/moduleCanHandle) when the
-			app module has no such handler, which is what lets "sharing" reach
-			this plugin without the app declaring anything. See
-			docs/qbix-gotchas.md "Two routes, one action" in the ro repo.
-		*/
-		/*
-			Three segments, not "sharing/engagements": Communities declares
-			":communityId/:tab" with no validator, so any two-segment path is
-			routed to a (missing) community first. And in the plain "routes"
-			block rather than routes@end, because within a block the LAST
-			declared route is tried first (Q::reverseOrder), so
-			"sharing/:publisherId/:listingId" below would swallow it.
+			Pages in "routes", the API in "routes@end". Q_Uri::url() walks the
+			blocks start, routes, end (each reversed) and takes the first pattern
+			the fields satisfy, so with the API pattern in routes@start every url
+			for a Sharing action -- a dashboard tab, a share link -- came out as
+			Q/plugins/Sharing/<action>. Here the page patterns win generation
+			(Sharing/listings -> /sharing, Sharing/listing with publisherId and
+			listingId -> /sharing/<p>/<id>) and the API pattern only matches
+			Q.req("Sharing/listing") calls that carry no route fields. Inbound is
+			unaffected. "sharing/engagements/mine" is three segments because
+			Communities' ":communityId/:tab" claims every two-segment path, and
+			it is declared AFTER the :publisherId/:listingId pattern because
+			within a block the last-declared route is tried first inbound.
 		*/
 		"routes": {
+			"sharing": {"module": "Sharing", "action": "listings"},
+			"sharing/engagement/:publisherId/:engagementId": {"module": "Sharing", "action": "engagement"},
+			"sharing/:publisherId/:listingId": {"module": "Sharing", "action": "listing"},
 			"sharing/engagements/mine": {"module": "Sharing", "action": "engagements"}
 		},
 		"routes@end": {
-			"sharing": {"module": "Sharing", "action": "listings"},
-			"sharing/engagement/:publisherId/:engagementId": {"module": "Sharing", "action": "engagement"},
-			"sharing/:publisherId/:listingId": {"module": "Sharing", "action": "listing"}
+			"Q/plugins/Sharing/:action": {"module": "Sharing"}
 		}
 	},
 	"Sharing": {
