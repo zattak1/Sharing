@@ -34,9 +34,19 @@
 			this plugin without the app declaring anything. See
 			docs/qbix-gotchas.md "Two routes, one action" in the ro repo.
 		*/
+		/*
+			Three segments, not "sharing/engagements": Communities declares
+			":communityId/:tab" with no validator, so any two-segment path is
+			routed to a (missing) community first. And in the plain "routes"
+			block rather than routes@end, because within a block the LAST
+			declared route is tried first (Q::reverseOrder), so
+			"sharing/:publisherId/:listingId" below would swallow it.
+		*/
+		"routes": {
+			"sharing/engagements/mine": {"module": "Sharing", "action": "engagements"}
+		},
 		"routes@end": {
 			"sharing": {"module": "Sharing", "action": "listings"},
-			"sharing/engagements": {"module": "Sharing", "action": "engagements"},
 			"sharing/engagement/:publisherId/:engagementId": {"module": "Sharing", "action": "engagement"},
 			"sharing/:publisherId/:listingId": {"module": "Sharing", "action": "listing"}
 		}
