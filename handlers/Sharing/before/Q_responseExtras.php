@@ -1,7 +1,7 @@
 <?php
 /**
  * Load the plugin's CSS/JS on Sharing-module pages only, and tell the client
- * what the current user may do so tools can render the right buttons
+ * which of the four gates the current user passes so tools can render the right buttons
  * without a round trip.
  */
 function Sharing_before_Q_responseExtras()
@@ -11,8 +11,9 @@ function Sharing_before_Q_responseExtras()
 	if ($module !== 'Sharing') {
 		return;
 	}
-	Q_Response::setScriptData('Q.plugins.Sharing.canOffer', Sharing::canOffer());
-	Q_Response::setScriptData('Q.plugins.Sharing.canRequest', Sharing::canRequest());
+	foreach (Sharing::gates() as $gate => $allowed) {
+		Q_Response::setScriptData("Q.plugins.Sharing.$gate", $allowed);
+	}
 	Q_Response::addStylesheet('{{Sharing}}/css/Sharing.css', 'Sharing');
 	Q_Response::addScript('{{Sharing}}/js/Sharing.js', 'Sharing');
 }

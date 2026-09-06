@@ -2,7 +2,7 @@
 	"Q": {
 		"pluginInfo": {
 			"Sharing": {
-				"version": "0.1",
+				"version": "0.2",
 				"compatible": "0.1",
 				"requires": {
 					"Q": "1.0",
@@ -25,56 +25,109 @@
 			docs/qbix-gotchas.md "Two routes, one action" in the ro repo.
 		*/
 		"routes@end": {
-			"sharing": {"module": "Sharing", "action": "resources"}
+			"sharing": {"module": "Sharing", "action": "listings"},
+			"sharing/engagements": {"module": "Sharing", "action": "engagements"},
+			"sharing/engagement/:publisherId/:streamName": {"module": "Sharing", "action": "engagement"},
+			"sharing/:publisherId/:streamName": {"module": "Sharing", "action": "listing"}
 		}
 	},
 	"Sharing": {
 		/*
-			Who may offer a resource and who may request one. Checked with
-			Users::roles() against the current community; the host app
-			overrides these lists in its own app.json. Guests are in neither
-			by design: they can browse but not transact. Values are
-			interpolated with {{app}} so an app can name its own roles.
+			Four gates, not two: a community can say "teachers offer, members
+			request; members post needs, teachers and members volunteer".
+			Checked with Users::roles() against the current community; the
+			host app overrides these lists in its own app.json. Guests are in
+			none by design: they can browse but not transact. Values are
+			interpolated with {{app}} so an app can name its own roles. The
+			key names are fixed (renaming a config key later is debt); giving
+			several the same default is free.
 		*/
 		"labels": {
-			"canOffer": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
-			"canRequest": ["Users/owners", "Users/admins", "Users/members"]
+			"canCreateOffer": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
+			"canRespondToOffer": ["Users/owners", "Users/admins", "Users/members"],
+			"canCreateNeed": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
+			"canRespondToNeed": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"]
 		}
 	},
 	"Streams": {
 		"types": {
 			/*
-				readLevel 30 = Streams::$READ_LEVEL['participants'],
-				writeLevel 23 = Streams::$WRITE_LEVEL['relate']: members can see
-				a resource and relate a booking to it; only the publisher edits.
-				Config cannot hold the named constants, so the numbers are
-				annotated here and code must use the names.
+				Sharing/listing: readLevel 30 = Streams::$READ_LEVEL['participants'],
+				writeLevel 23 = Streams::$WRITE_LEVEL['relate'] -- members can see
+				a listing and relate an engagement to it; only the publisher
+				edits, and only title and content through the generic path.
+				Attributes (direction, kind, exclusive, custody, ...) change
+				only through Sharing/listing/put, which can refuse changes that
+				would invalidate live engagements. Config cannot hold the named
+				constants, so the numbers are annotated here and code must use
+				the names.
 			*/
-			"Sharing/resource": {
+			"Sharing/listing": {
 				"emoji": "🤝",
 				"create": true,
 				"close": true,
-				"edit": ["title", "content", "attributes"],
+				"edit": ["title", "content"],
 				"defaults": {
-					"title": "Untitled resource",
+					"title": "Untitled listing",
 					"readLevel": 30,
 					"writeLevel": 23,
 					"adminLevel": 0
+				},
+				"messages": {
+					"Streams/chat/message": {"post": true}
 				}
 			},
-			"Sharing/booking": {
-				"emoji": "📅",
+			/*
+				The listing's private data (exact address, handoff
+				instructions, door codes). Attributes are one JSON blob served
+				whole to anyone at read level, so this is a separate stream
+				with readLevel none: only its publisher reads it, and the
+				server copies it onto each engagement on acceptance.
+			*/
+			"Sharing/listing/private": {
+				"emoji": "🔒",
+				"create": false,
+				"close": false,
+				"edit": false,
+				"defaults": {
+					"title": "Private listing details",
+					"readLevel": 0,
+					"writeLevel": 0,
+					"adminLevel": 0
+				}
+			},
+			/*
+				Sharing/engagement: edit is false because Streams/stream/put
+				sets every attribute the client sends, and the publisher here
+				is the responder, who must not be able to write
+				persistedState. Every change goes through
+				Sharing_Engagement::transition(). Close is false too:
+				cancellation is a transition, not a close. None of the
+				state-changing messages carries post: true -- transition()
+				posts them server-side after validating; only chat is
+				client-postable.
+			*/
+			"Sharing/engagement": {
+				"emoji": "📨",
 				"create": true,
 				"close": false,
-				"edit": ["attributes"],
+				"edit": false,
 				"defaults": {
-					"title": "Booking",
+					"title": "Engagement",
 					"readLevel": 0,
 					"writeLevel": 0,
 					"adminLevel": 0
 				},
 				"messages": {
-					"Streams/chat/message": {"post": true}
+					"Streams/chat/message": {"post": true},
+					"Sharing/engagement/proposed": {},
+					"Sharing/engagement/accepted": {},
+					"Sharing/engagement/rejected": {},
+					"Sharing/engagement/cancelled": {},
+					"Sharing/engagement/handedOver": {},
+					"Sharing/engagement/started": {},
+					"Sharing/engagement/returned": {},
+					"Sharing/engagement/completed": {}
 				}
 			}
 		}

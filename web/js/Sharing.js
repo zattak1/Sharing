@@ -1,6 +1,6 @@
 /**
  * Sharing plugin front-end namespace. Slice 1 only establishes
- * Q.plugins.Sharing and the two permission booleans the server sets; the
+ * Q.plugins.Sharing and the four gate booleans the server sets; the
  * Sharing/* tools arrive with the slices that need them.
  *
  * @module Sharing
@@ -10,7 +10,7 @@
 
 var Sharing = Q.Sharing = Q.plugins.Sharing = Q.plugins.Sharing || {};
 
-Sharing.canOffer = !!Sharing.canOffer;
-Sharing.canRequest = !!Sharing.canRequest;
+['canCreateOffer', 'canRespondToOffer', 'canCreateNeed', 'canRespondToNeed']
+.forEach(function (gate) { Sharing[gate] = !!Sharing[gate]; });
 
 })(Q);

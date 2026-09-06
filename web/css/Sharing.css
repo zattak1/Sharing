@@ -1,18 +1,18 @@
 /* Sharing plugin. Class prefix Sharing_ throughout; the host app overrides
    from its own stylesheet, never by editing this one. */
-.Sharing_resources {
+.Sharing_listings {
 	max-width: 720px;
 	margin: 0 auto;
 	padding: 16px;
 }
-.Sharing_resources_header h1 {
+.Sharing_listings_header h1 {
 	margin: 0 0 8px;
 }
-.Sharing_resources_intro {
+.Sharing_listings_intro {
 	margin: 0 0 16px;
 	opacity: 0.8;
 }
-.Sharing_offer_button[disabled] {
+.Sharing_post_button[disabled] {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
@@ -23,7 +23,7 @@
 	border-radius: 8px;
 	opacity: 0.7;
 }
-.Sharing_resources_note {
+.Sharing_listings_note {
 	margin-top: 16px;
 	font-size: 0.9em;
 	opacity: 0.8;

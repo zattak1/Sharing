@@ -1,11 +1,11 @@
 {
-	"resources": {
+	"listings": {
 		"Title": "Sharing",
-		"Intro": "Borrow what members are offering, or offer something of your own: an item, your time, or a space.",
-		"Offer": "Offer something",
-		"OfferSoon": "Coming soon",
-		"Empty": "Nothing is being offered yet.",
-		"LogInToRequest": "Log in to request a resource.",
-		"CannotRequest": "Your role in this community does not allow requesting resources yet."
+		"Intro": "Borrow what members are offering, lend something of your own, or ask for a hand.",
+		"Post": "Post a listing",
+		"PostSoon": "Coming soon",
+		"Empty": "No offers or needs have been posted yet.",
+		"LogInToRespond": "Log in to respond to a listing.",
+		"CannotRespond": "Your role in this community does not allow responding to listings yet."
 	}
 }
