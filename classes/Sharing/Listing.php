@@ -233,6 +233,11 @@ class Sharing_Listing
 			if (!$includePaused and $stream->getAttribute('paused')) {
 				continue;
 			}
+			// Streams::close() keeps the row (and its relation) and sets
+			// closedTime; a closed listing is gone from the market.
+			if ($stream->closedTime) {
+				continue;
+			}
 			$result[] = $stream;
 		}
 		usort($result, function ($a, $b) {
@@ -281,7 +286,8 @@ class Sharing_Listing
 			'exclusive' => !empty($a['exclusive']),
 			'custody' => !empty($a['custody']),
 			'area' => Q::ifset($a, 'area', ''),
-			'paused' => !empty($a['paused'])
+			'paused' => !empty($a['paused']),
+			'closed' => !empty($stream->closedTime)
 		);
 	}
 

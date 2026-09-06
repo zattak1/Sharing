@@ -15,7 +15,8 @@
 			}
 		},
 		"handlersBeforeEvent": {
-			"Q/responseExtras": ["Sharing/before/Q_responseExtras"]
+			"Q/responseExtras": ["Sharing/before/Q_responseExtras"],
+			"Streams/close/Sharing/listing": ["Sharing/before/Streams_close_Sharing_listing"]
 		},
 		/*
 			The API endpoints, the way Places declares its own: routes@start

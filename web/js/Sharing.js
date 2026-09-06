@@ -201,6 +201,34 @@ function bindTransitions() {
 
 Q.page('Sharing/listing', function () {
 	bindTransitions();
+	// Close goes through the generic Streams/stream DELETE, whose access
+	// check the publisher passes; the plugin's before-close hook refuses
+	// while an engagement is accepted or active and cancels proposed ones.
+	$('.Sharing_close_button').on(Q.Pointer.fastclick, true, function () {
+		var $button = $(this);
+		var $holder = $button.closest('[data-streamName]');
+		var $error = $button.siblings('.Sharing_close_error');
+		Q.Text.get('Sharing/content', function (err, text) {
+			if (!confirm(text.listing.CloseConfirm)) {
+				return;
+			}
+			$error.prop('hidden', true);
+			$button.prop('disabled', true).text(text.listing.Closing);
+			Q.req('Streams/stream', ['result'], function (err, data) {
+				var msg = Q.firstErrorMessage(err, data);
+				if (msg) {
+					$button.prop('disabled', false).text(text.listing.Close);
+					$error.text(msg).prop('hidden', false);
+					return;
+				}
+				Q.handle(Q.url('sharing'));
+			}, {method: 'delete', fields: {
+				publisherId: $holder.attr('data-publisherId'),
+				streamName: $holder.attr('data-streamName')
+			}});
+		});
+		return false;
+	});
 	$('form.Sharing_respond_form').on('submit', true, function (e) {
 		e.preventDefault();
 		var $form = $(this);

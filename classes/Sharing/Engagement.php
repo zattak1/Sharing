@@ -220,6 +220,21 @@ class Sharing_Engagement
 		)) ?: $engagement;
 	}
 
+	/**
+	 * Cancel without the role check: used when a listing closes and its
+	 * proposed engagements go with it (plan §4.5). Same message, same state.
+	 * @method forceCancel
+	 * @static
+	 */
+	static function forceCancel($byUserId, $engagement)
+	{
+		if ($engagement->getAttribute('persistedState') !== 'proposed') {
+			return $engagement;
+		}
+		self::apply($byUserId, $engagement, 'cancel', array('persistedState' => 'cancelled'));
+		return $engagement;
+	}
+
 	protected static function apply($userId, $engagement, $verb, $attributes)
 	{
 		foreach ($attributes as $k => $v) {

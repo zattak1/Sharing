@@ -45,7 +45,11 @@
 			"offer": "When would you like it, and anything the owner should know",
 			"need": "How you can help, and when"
 		},
-		"PausedNote": "This listing is paused."
+		"PausedNote": "This listing is paused.",
+		"Closed": "Closed",
+		"Close": "Close this listing",
+		"CloseConfirm": "Close this listing? Proposed responses will be cancelled.",
+		"Closing": "Closing…"
 	},
 	"composer": {
 		"Title": "Post a listing",

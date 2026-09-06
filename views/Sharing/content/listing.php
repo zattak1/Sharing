@@ -16,6 +16,7 @@ $kind = $listing['kind'];
 		<span class="Sharing_badge Sharing_badge_direction"><?php echo Q_Html::text($t['direction'][$direction]) ?></span>
 		<span class="Sharing_badge Sharing_badge_kind"><?php echo Q_Html::text($t['kind'][$kind]) ?></span>
 		<?php if ($listing['paused']): ?><span class="Sharing_badge Sharing_badge_paused"><?php echo Q_Html::text($t['Paused']) ?></span><?php endif ?>
+		<?php if ($listing['closed']): ?><span class="Sharing_badge Sharing_badge_closed"><?php echo Q_Html::text($t['Closed']) ?></span><?php endif ?>
 	</div>
 	<h1 class="Sharing_listing_title"><?php echo Q_Html::text($listing['title']) ?></h1>
 	<div class="Sharing_listing_publisher">
@@ -52,6 +53,12 @@ $kind = $listing['kind'];
 			} endif ?>
 			<div class="Sharing_transition_error" hidden></div>
 		</div>
+		<?php if (!$listing['closed']): ?>
+			<div class="Sharing_listing_manage">
+				<button class="Q_button Sharing_close_button"><?php echo Q_Html::text($t['Close']) ?></button>
+				<div class="Sharing_close_error" hidden></div>
+			</div>
+		<?php endif ?>
 	<?php elseif ($myEngagement): ?>
 		<div class="Sharing_listing_mine">
 			<h3><?php echo Q_Html::text($t['YourResponse']) ?></h3>
@@ -60,7 +67,7 @@ $kind = $listing['kind'];
 			)) ?>
 			<div class="Sharing_transition_error" hidden></div>
 		</div>
-	<?php elseif ($openToResponses): ?>
+	<?php elseif ($openToResponses && !$listing['closed']): ?>
 		<form class="Sharing_respond_form">
 			<h3><?php echo Q_Html::text($t['respond'][$direction]) ?></h3>
 			<label><?php echo Q_Html::text($t['Note']) ?>
