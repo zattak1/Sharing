@@ -9,5 +9,7 @@ respond with engagements that the listing publisher accepts. Design and build or
 Requires `Users`, `Streams`, `Places`, `Calendars`. Mount it into an app per
 `docs/plugin-strategy.md` §6 and add `Sharing` to `PLUGINS`.
 
-Status: slice 2 (names, gates, closed edit path). `/sharing` renders an empty
-listing page; nothing can be posted yet.
+Status: v1 code complete (2026-09-06) — post offers and needs, respond,
+accept/reject, the custody and non-custody lifecycles, cancel, and the
+close-listing guard, with private handoff data reaching only accepted
+responders. Not yet deployed to any app outside worktree stacks.
