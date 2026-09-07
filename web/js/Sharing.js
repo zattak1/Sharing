@@ -58,7 +58,7 @@ Sharing.Listing = {
 			var direction = options.direction || (canOffer ? 'offer' : 'need');
 			var $form = $(
 				'<form class="Sharing_listing_composer" autocomplete="off">' +
-				'<fieldset class="Sharing_composer_direction"><legend>' + esc(t.Direction) + '</legend>' +
+				'<fieldset class="Sharing_composer_direction">' +
 				(canOffer ? radio('direction', 'offer', t.direction.offer, direction === 'offer') : '') +
 				(canNeed ? radio('direction', 'need', t.direction.need, direction === 'need') : '') +
 				'</fieldset>' +
@@ -68,9 +68,9 @@ Sharing.Listing = {
 				'<option value="service">' + esc(t.kind.service) + '</option>' +
 				'</select></label>' +
 				'<label>' + esc(t.TitleLabel) +
-				'<input type="text" name="title" maxlength="255" placeholder="' + esc(t.TitlePlaceholder) + '"></label>' +
+				'<input type="text" name="title" maxlength="255" placeholder="' + esc(t.TitlePlaceholder.item) + '"></label>' +
 				'<label>' + esc(t.Content) +
-				'<textarea name="content" rows="4" placeholder="' + esc(t.ContentPlaceholder) + '"></textarea></label>' +
+				'<textarea name="content" rows="4" placeholder="' + esc(t.ContentPlaceholder.item) + '"></textarea></label>' +
 				'<label>' + esc(t.Area) +
 				'<input type="text" name="area" maxlength="255" placeholder="' + esc(t.AreaPlaceholder) + '"></label>' +
 				'<div class="Sharing_composer_facts">' +
@@ -87,7 +87,11 @@ Sharing.Listing = {
 			// Defaults follow the kind; the server applies the same rule
 			// when a field is absent, so these are for the user's eyes.
 			$form.find('select[name=kind]').on('change', function () {
-				var isItem = $(this).val() === 'item';
+				var kind = $(this).val();
+				var isItem = kind === 'item';
+				// The examples follow the kind.
+				$form.find('input[name=title]').attr('placeholder', t.TitlePlaceholder[kind]);
+				$form.find('textarea[name=content]').attr('placeholder', t.ContentPlaceholder[kind]);
 				$form.find('input[name=exclusive]').prop('checked', isItem);
 				$form.find('input[name=custody]').prop('checked', isItem);
 				$form.find('.Sharing_composer_facts').toggle(isItem);

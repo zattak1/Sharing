@@ -53,20 +53,25 @@
 	},
 	"composer": {
 		"Title": "Post a listing",
-		"Direction": "What is this?",
 		"direction": {
 			"offer": "I have something to share",
 			"need": "I need something"
 		},
-		"Kind": "Kind",
+		"Kind": "What?",
 		"kind": {
 			"item": "An item",
 			"service": "A service or some help"
 		},
 		"TitleLabel": "Title",
-		"TitlePlaceholder": "e.g. Projector, or Help moving a sofa",
+		"TitlePlaceholder": {
+			"item": "e.g. Projector, camping tent, sewing machine",
+			"service": "e.g. An hour of coaching, help moving a sofa"
+		},
 		"Content": "Details",
-		"ContentPlaceholder": "What is it, what condition, any conditions of use",
+		"ContentPlaceholder": {
+			"item": "What is it, what condition it is in, any conditions of use",
+			"service": "What you can do (or need done), roughly when, anything the other person should know"
+		},
 		"Area": "Where (public)",
 		"AreaPlaceholder": "Neighbourhood or venue, not your address",
 		"Exclusive": "Only one person can have it at a time",
