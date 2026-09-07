@@ -49,7 +49,11 @@
 .Sharing_muted { opacity: 0.6; }
 .Sharing_respond_button { margin-top: 16px; }
 /* composer */
-.Sharing_listing_composer { display: flex; flex-direction: column; gap: 12px; min-width: 280px; }
+/* Q's dialog slot carries no padding of its own; the form provides it. */
+.Sharing_listing_composer {
+	display: flex; flex-direction: column; gap: 12px; min-width: 280px;
+	padding: 16px 20px 20px; box-sizing: border-box;
+}
 .Sharing_listing_composer label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
 .Sharing_listing_composer input[type=text], .Sharing_listing_composer textarea,
 .Sharing_listing_composer select { font: inherit; font-weight: normal; padding: 8px; }
