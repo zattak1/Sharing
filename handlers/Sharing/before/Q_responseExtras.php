@@ -14,6 +14,14 @@ function Sharing_before_Q_responseExtras()
 	foreach (Sharing::gates() as $gate => $allowed) {
 		Q_Response::setScriptData("Q.plugins.Sharing.$gate", $allowed);
 	}
-	Q_Response::addStylesheet('{{Sharing}}/css/Sharing.css', 'Sharing');
-	Q_Response::addScript('{{Sharing}}/js/Sharing.js', 'Sharing');
+	// Cache-bust with the file's mtime, the way the host apps do for their
+	// own assets: apache serves these with far-future caching, so without
+	// it a browser that saw an earlier version keeps it across deploys.
+	$dir = Q_PLUGINS_DIR . DS . 'Sharing' . DS . 'web';
+	Q_Response::addStylesheet(
+		'{{Sharing}}/css/Sharing.css?' . @filemtime($dir . DS . 'css' . DS . 'Sharing.css'), 'Sharing'
+	);
+	Q_Response::addScript(
+		'{{Sharing}}/js/Sharing.js?' . @filemtime($dir . DS . 'js' . DS . 'Sharing.js'), 'Sharing'
+	);
 }
