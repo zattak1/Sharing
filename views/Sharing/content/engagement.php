@@ -18,12 +18,12 @@ $e = $engagement;
 	</h1>
 	<div class="Sharing_engagement_parties">
 		<span class="Sharing_engagement_responder"><?php echo Q::tool('Users/avatar', array(
-			'userId' => $e['publisherId'], 'icon' => 50
+			'userId' => $e['publisherId'], 'icon' => 50, 'short' => true
 		), array('id' => 'engagement_responder')) ?></span>
 		<?php if ($listing): ?>
 			<span class="Sharing_engagement_arrow">&harr;</span>
 			<span class="Sharing_engagement_publisher"><?php echo Q::tool('Users/avatar', array(
-				'userId' => $listing['publisherId'], 'icon' => 50
+				'userId' => $listing['publisherId'], 'icon' => 50, 'short' => true
 			), array('id' => 'engagement_publisher')) ?></span>
 		<?php endif ?>
 	</div>
