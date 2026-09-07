@@ -20,7 +20,7 @@ $kind = $listing['kind'];
 	</div>
 	<h1 class="Sharing_listing_title"><?php echo Q_Html::text($listing['title']) ?></h1>
 	<div class="Sharing_listing_publisher">
-		<?php echo Q::tool('Users/avatar', array('userId' => $listing['publisherId'], 'icon' => 50), array('id' => 'listing_publisher')) ?>
+		<?php echo Q::tool('Users/avatar', array('userId' => $listing['publisherId'], 'icon' => 50, 'short' => true), array('id' => 'listing_publisher')) ?>
 	</div>
 	<?php if ($listing['content'] !== ''): ?>
 		<div class="Sharing_listing_content"><?php echo nl2br(Q_Html::text($listing['content'])) ?></div>
