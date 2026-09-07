@@ -98,3 +98,12 @@
 .Sharing_respond_form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
 .Sharing_respond_form textarea, .Sharing_respond_form input { font: inherit; font-weight: normal; padding: 8px; }
 .Sharing_listing_engagements, .Sharing_listing_mine { margin-top: 20px; }
+/* Users/avatar tools inside the plugin: a gap between the picture and the
+   name, and first names only (the views pass short => true). */
+.Sharing_listing_publisher .Users_avatar_tool,
+.Sharing_engagement_parties .Users_avatar_tool,
+.Sharing_engagement_responder .Users_avatar_tool,
+.Sharing_listing_card .Users_avatar_tool {
+	display: inline-flex; align-items: center; gap: 10px;
+}
+.Sharing_listing_publisher { margin: 4px 0 12px; }
