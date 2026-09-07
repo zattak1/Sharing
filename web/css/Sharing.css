@@ -5,8 +5,11 @@
 	margin: 0 auto;
 	padding: 16px;
 }
+.Sharing_listings_header { text-align: center; }
 .Sharing_listings_header h1, .Sharing_listing_title { margin: 0 0 8px; }
 .Sharing_listings_intro { margin: 0 0 16px; opacity: 0.8; }
+.Sharing_post_button { display: inline-block; margin: 4px auto 24px; padding: 10px 24px; }
+.Sharing_direction_toggle { justify-content: center; }
 .Sharing_direction_toggle { display: flex; gap: 8px; margin: 0 0 16px; }
 .Sharing_direction_tab {
 	padding: 6px 14px; border-radius: 999px; border: 1px solid currentColor;
