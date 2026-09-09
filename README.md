@@ -12,4 +12,7 @@ Requires `Users`, `Streams`, `Places`, `Calendars`. Mount it into an app per
 Status: v1 code complete (2026-09-06) — post offers and needs, respond,
 accept/reject, the custody and non-custody lifecycles, cancel, and the
 close-listing guard, with private handoff data reaching only accepted
-responders. Not yet deployed to any app outside worktree stacks.
+responders.
+
+Deployed 2026-09-08: v1 (0.2) is live on yoga.reallyours.com and
+demo.reallyours.com, yoga being its first customer.
