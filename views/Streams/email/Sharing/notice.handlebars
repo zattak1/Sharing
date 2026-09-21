@@ -1,0 +1,14 @@
+{{!
+	One template for all eight engagement events: the event-specific sentence
+	arrives as the "summary" instruction, because handlebars here has no
+	text-file lookup and the copy belongs next to the rest of the plugin's in
+	text/Sharing/content. Fields are the message's instructions, so every
+	string below is one Sharing_Notice put there. Selected by
+	instructions.templateName, which Streams_Message.deliver prefers over the
+	message type (ro#769).
+}}
+<p>{{summary}}</p>
+<p><strong>{{listingTitle}}</strong></p>
+{{#if note}}<p>{{note}}</p>{{/if}}
+<p><a href="{{url}}">{{cta}}</a></p>
+<p style="color:#888;font-size:12px">{{why}}</p>

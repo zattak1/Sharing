@@ -61,6 +61,28 @@
 		}
 	},
 	"Streams": {
+		/*
+			SHARING_PLUGIN_CONFIG_DIR/streams.json, per
+			Streams::userStreamsTree(), which resolves a non-app key as
+			<NAME>_PLUGIN_CONFIG_DIR. It describes Sharing/notices so
+			subscribing picks up the delivery rule below.
+		*/
+		"userStreams": {
+			"Sharing": "streams.json"
+		},
+		/*
+			Push where the member has a device, and email; SMS is deliberately
+			not a fallback -- a lending community can generate a lot of these,
+			the plugin ships no mobile template, and outbound SMS has no
+			timeout upstream (ro#729). A member who wants none of it
+			unsubscribes from their notice stream, which Sharing_Notice
+			respects because it only subscribes at creation.
+		*/
+		"rules": {
+			"deliver": {
+				"sharing": [["devices", "email"]]
+			}
+		},
 		"types": {
 			/*
 				Sharing/listing: readLevel 30 = Streams::$READ_LEVEL['participants'],
@@ -85,7 +107,17 @@
 					"adminLevel": 0
 				},
 				"messages": {
-					"Streams/chat/message": {"post": true}
+					"Streams/chat/message": {"post": true},
+					/*
+						propose() posts this on the listing as well as on the
+						engagement, so the type has to declare it -- an
+						undeclared message type has no description or subject
+						of its own. Not post: true: like every other lifecycle
+						message it is posted server-side.
+					*/
+					"Sharing/engagement/proposed": {
+						"description": "Someone responded to a listing"
+					}
 				}
 			},
 			/*
@@ -118,6 +150,74 @@
 				posts them server-side after validating; only chat is
 				client-postable.
 			*/
+			/*
+				One notice stream per user, which they publish and subscribe
+				to, and which carries the deliverable copy of an engagement
+				event (ro#769). Lifecycle messages on the engagement itself
+				reach nobody: delivery runs off Streams_Subscription, and
+				subscribing both parties to the engagement would notify each
+				of them of their own actions, since the actor-skip in
+				notifyParticipants is commented out.
+
+				readLevel 0: nobody but its publisher, not even admins.
+				create: false -- only Sharing_Notice::stream() makes these.
+				evenIfOnline: the counterparty is not the person looking at
+				the page, so an open tab elsewhere must not suppress the mail.
+			*/
+			"Sharing/notices": {
+				"emoji": "🔔",
+				"create": false,
+				"close": false,
+				"edit": false,
+				"defaults": {
+					"title": "Sharing notices",
+					"readLevel": 0,
+					"writeLevel": 0,
+					"adminLevel": 0
+				},
+				"messages": {
+					"Sharing/engagement/proposed": {
+						"description": "Someone responded to your listing",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/proposed"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/accepted": {
+						"description": "Your response was accepted",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/accepted"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/rejected": {
+						"description": "Your response was declined",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/rejected"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/cancelled": {
+						"description": "An engagement was cancelled",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/cancelled"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/handedOver": {
+						"description": "Something changed hands",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/handedOver"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/started": {
+						"description": "An engagement started",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/started"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/returned": {
+						"description": "Something was returned",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/returned"]],
+						"evenIfOnline": true
+					},
+					"Sharing/engagement/completed": {
+						"description": "An engagement is complete",
+						"subject": ["Sharing/content", ["notifications", "Sharing/engagement/completed"]],
+						"evenIfOnline": true
+					}
+				}
+			},
 			"Sharing/engagement": {
 				"emoji": "📨",
 				"create": true,

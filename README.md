@@ -16,3 +16,12 @@ responders.
 
 Deployed 2026-09-08: v1 (0.2) is live on yoga.reallyours.com and
 demo.reallyours.com, yoga being its first customer.
+
+Engagement events notify the counterparty through a per-user `Sharing/notices`
+stream (`classes/Sharing/Notice.php`): a lifecycle message on the engagement is
+the audit trail, and the notice is what Streams actually delivers, since
+delivery runs off `Streams_Subscription` and nobody subscribes to an engagement
+([ro#769](https://github.com/zattak1/ro/issues/769)). Wiring — the notice
+stream type, its subject keys and its delivery rule — is pinned by
+`infra/tests-php/tests/Unit/SharingNoticeConfigTest.php` in the `ro` repo,
+which mounts a checkout of this repository found beside the main one.

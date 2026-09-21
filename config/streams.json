@@ -1,0 +1,23 @@
+{
+	/*
+		The per-user notice stream, described here so Streams::subscribe()
+		finds its delivery rule: it reads the rule out of the userStreams tree
+		by stream NAME (Streams::subscribe, "$userStreamsTree->get($name,
+		'subscribe')"), which is why Sharing_Notice::NAME is fixed rather than
+		generated. "sharing" names the rule in Streams/rules/deliver below.
+	*/
+	"Sharing/notices": {
+		"type": "Sharing/notices",
+		"title": "Sharing notices",
+		"readLevel": 0,
+		"writeLevel": 0,
+		"adminLevel": 0,
+		"subscribe": {
+			"rule": {
+				"deliver": {
+					"to": "sharing"
+				}
+			}
+		}
+	}
+}
