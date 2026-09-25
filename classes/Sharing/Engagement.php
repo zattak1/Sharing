@@ -138,6 +138,10 @@ class Sharing_Engagement
 			'type' => self::$messages['propose'],
 			'instructions' => $instructions
 		), true);
+		// Neither message is deliverable on its own: nobody subscribes to a
+		// listing or an engagement, so email, SMS and push come from the
+		// counterparty's notice stream (ro#769).
+		Sharing_Notice::send($userId, $engagement, $listing, self::$messages['propose']);
 
 		return Streams_Stream::fetch($userId, $userId, $engagement->name) ?: $engagement;
 	}
@@ -215,6 +219,10 @@ class Sharing_Engagement
 		} else {
 			self::apply($userId, $engagement, $verb, $attributes);
 		}
+		// After the accept lock is released: the message is the audit trail,
+		// the notice is what actually gets delivered (ro#769), and it writes
+		// a stream and calls node, which has no business inside the lock.
+		Sharing_Notice::send($userId, $engagement, $listing, self::$messages[$verb]);
 		return Streams_Stream::fetch($userId, $engagement->publisherId, $engagement->name, '*', array(
 			'skipAccess' => true
 		)) ?: $engagement;
@@ -232,6 +240,10 @@ class Sharing_Engagement
 			return $engagement;
 		}
 		self::apply($byUserId, $engagement, 'cancel', array('persistedState' => 'cancelled'));
+		$listing = self::listingOf($engagement);
+		if ($listing) {
+			Sharing_Notice::send($byUserId, $engagement, $listing, self::$messages['cancel']);
+		}
 		return $engagement;
 	}
 

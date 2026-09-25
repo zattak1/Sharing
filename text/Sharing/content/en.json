@@ -1,4 +1,47 @@
 {
+	"notifications": {
+		/*
+			Subjects are looked up per message type by
+			Streams_Message.deliver, in the RECIPIENT's language, and rendered
+			as handlebars against the notice's instructions -- so {{...}} here
+			is a field Sharing_Notice put there.
+		*/
+		"Sharing/engagement/proposed": "{{displayName}} responded to \"{{listingTitle}}\"",
+		"Sharing/engagement/accepted": "{{displayName}} accepted your response to \"{{listingTitle}}\"",
+		"Sharing/engagement/rejected": "{{displayName}} declined your response to \"{{listingTitle}}\"",
+		"Sharing/engagement/cancelled": "{{displayName}} cancelled: \"{{listingTitle}}\"",
+		"Sharing/engagement/handedOver": "\"{{listingTitle}}\" has changed hands",
+		"Sharing/engagement/started": "\"{{listingTitle}}\" has started",
+		"Sharing/engagement/returned": "\"{{listingTitle}}\" has been returned",
+		"Sharing/engagement/completed": "\"{{listingTitle}}\" is complete",
+		"View": "See the details",
+		"Why": "You are getting this because you posted or responded to a listing in this community. Open the listing to stop following it.",
+		/*
+			The one event-specific sentence in the notice body, keyed by the
+			transition verb. Where the two directions read differently -- being
+			accepted as a borrower is not the same as being accepted as a
+			helper -- the verb takes an offer/need pair. Unlike the subjects
+			above these are resolved when the notice is posted, not per
+			recipient, so they are the plugin's one piece of copy that does not
+			follow the reader's language (ro#769).
+		*/
+		"body": {
+			"propose": {
+				"offer": "{{displayName}} would like to borrow what you are offering.",
+				"need": "{{displayName}} offered to help with what you asked for."
+			},
+			"accept": {
+				"offer": "{{displayName}} accepted your request. Any private details are on the engagement page.",
+				"need": "{{displayName}} accepted your offer to help. Any private details are on the engagement page."
+			},
+			"reject": "{{displayName}} declined this one.",
+			"cancel": "{{displayName}} cancelled this.",
+			"handOver": "{{displayName}} marked this as handed over to you.",
+			"start": "{{displayName}} marked this as started.",
+			"return": "{{displayName}} marked this as returned.",
+			"complete": "{{displayName}} marked this as complete."
+		}
+	},
 	"listings": {
 		"Title": "Sharing",
 		"Intro": "Borrow what members are offering, lend something of your own, or ask for a hand.",
