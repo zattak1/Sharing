@@ -101,39 +101,234 @@ class Sharing_Listing
 
 		$communityId = Sharing::communityId();
 		$category = self::category($communityId);
-
-		// skipAccess: the label gate above is the authorization; an ordinary
-		// member has no write access on the community's category stream, and
-		// relating to it is exactly what a listing must do.
-		$stream = Streams::create($userId, $userId, self::TYPE, array(
-			'title' => $title,
-			'content' => $content,
-			'attributes' => $attributes
-		), array(
-			'skipAccess' => true,
-			'relate' => array(
-				'publisherId' => $communityId,
-				'streamName' => $category->name,
-				'type' => self::RELATION,
-				'weight' => time(),
-				'inheritAccess' => false
-			)
-		));
-
-		// Private data never lives on the listing (plan §1.7): attributes are
-		// one blob served whole to anyone at read level.
 		$private = trim((string)Q::ifset($params, 'private', ''));
-		if ($private !== '') {
-			Streams::create($userId, $userId, self::PRIVATE_TYPE, array(
-				'name' => self::privateName($stream->name),
-				'title' => 'Private details: ' . $title,
-				'attributes' => array('instructions' => $private)
-			), array('skipAccess' => true));
-		}
 
-		// Re-fetch so callers get a full row (insertedTime etc.), not the
-		// partially populated object Streams::create() returns.
-		return Streams_Stream::fetch($userId, $userId, $stream->name) ?: $stream;
+		// In the plugin's write scope: Sharing_Guard refuses to create a
+		// Sharing stream, or relate one, from anywhere else (ro#586).
+		return Sharing::asServer(function () use (
+			$userId, $title, $content, $attributes, $communityId, $category, $private
+		) {
+			// skipAccess: the label gate above is the authorization; an ordinary
+			// member has no write access on the community's category stream, and
+			// relating to it is exactly what a listing must do.
+			$stream = Streams::create($userId, $userId, self::TYPE, array(
+				'title' => $title,
+				'content' => $content,
+				'attributes' => $attributes
+			), array(
+				'skipAccess' => true,
+				'relate' => array(
+					'publisherId' => $communityId,
+					'streamName' => $category->name,
+					'type' => self::RELATION,
+					'weight' => time(),
+					'inheritAccess' => false
+				)
+			));
+
+			// Private data never lives on the listing (plan §1.7): attributes are
+			// one blob served whole to anyone at read level.
+			if ($private !== '') {
+				Streams::create($userId, $userId, self::PRIVATE_TYPE, array(
+					'name' => self::privateName($stream->name),
+					'title' => 'Private details: ' . $title,
+					'attributes' => array('instructions' => $private)
+				), array('skipAccess' => true));
+			}
+
+			// Re-fetch so callers get a full row (insertedTime etc.), not the
+			// partially populated object Streams::create() returns.
+			return Streams_Stream::fetch($userId, $userId, $stream->name) ?: $stream;
+		});
+	}
+
+	/**
+	 * Run $callable with the listing's row locked, and return its result.
+	 *
+	 * The one lock every Sharing decision takes (ro#586, audit R04):
+	 * proposing, every engagement transition, pausing and closing all read
+	 * state and write on it, so all of them hold the listing's
+	 * streams_stream row FOR UPDATE from before the read until after the
+	 * write. $callable gets the listing as re-read under the lock -- never
+	 * the caller's copy, which may be from before a competing write -- and
+	 * runs in the plugin's write scope (Sharing::asServer). The transaction
+	 * commits when it returns and rolls back if it throws.
+	 *
+	 * Lock order: this row first, then whatever $callable touches. Every
+	 * Sharing writer goes through here, so none of them can hold an
+	 * engagement and wait for its listing.
+	 *
+	 * @method locked
+	 * @static
+	 * @param {string} $publisherId
+	 * @param {string} $name
+	 * @param {callable} $callable receives the locked Streams_Stream
+	 * @return {mixed}
+	 * @throws {Q_Exception_MissingRow} if there is no such listing
+	 */
+	static function locked($publisherId, $name, $callable)
+	{
+		$where = array('publisherId' => $publisherId, 'name' => $name);
+		$listing = Streams_Stream::select('*')->where($where)
+			->begin('FOR UPDATE', self::LOCK_KEY)
+			->caching(false)
+			->fetchDbRow();
+		try {
+			if (!$listing or $listing->type !== self::TYPE) {
+				throw new Q_Exception_MissingRow(array(
+					'table' => 'listing', 'criteria' => "$publisherId $name"
+				));
+			}
+			$result = Sharing::asServer(function () use ($callable, $listing) {
+				return call_user_func($callable, $listing);
+			});
+		} catch (Exception $e) {
+			self::rollback($where);
+			throw $e;
+		} catch (Throwable $e) {
+			self::rollback($where);
+			throw $e;
+		}
+		Streams_Stream::select('publisherId')->where($where)
+			->commit(self::LOCK_KEY)->execute();
+		return $result;
+	}
+
+	/** The transaction key of the listing lock. */
+	const LOCK_KEY = 'Sharing/listing';
+
+	/**
+	 * Roll the listing lock's transaction back. A failed query inside it may
+	 * already have rolled everything back (Db_Query_Mysql does, on any query
+	 * error), in which case PDO has no transaction to roll back and says so;
+	 * that must not mask the exception being handled.
+	 * @method rollback
+	 * @static
+	 * @protected
+	 */
+	protected static function rollback($where)
+	{
+		try {
+			Streams_Stream::select('publisherId')->where($where)->rollback()->execute();
+		} catch (Exception $e) {
+			// already rolled back
+		}
+	}
+
+	/**
+	 * Close a listing (plan §4.5), under its lock: refused while an
+	 * engagement is accepted or active -- recruitment stops with pause(),
+	 * not close(), so commitments survive it (audit R18) -- and otherwise
+	 * every proposed engagement is cancelled and the listing closed in the
+	 * same transaction, so no proposal or acceptance can land in between.
+	 * @method close
+	 * @static
+	 * @param {string} $userId the publisher, or a member who may resolve
+	 * @param {string} $publisherId
+	 * @param {string} $name
+	 * @return {boolean} whether this call closed it
+	 * @throws {Users_Exception_NotAuthorized}
+	 * @throws {Q_Exception}
+	 */
+	static function close($userId, $publisherId, $name)
+	{
+		$cancelled = array();
+		$listing = null;
+		$closed = self::locked($publisherId, $name, function ($l) use ($userId, &$cancelled, &$listing) {
+			$listing = $l;
+			self::requireManager($userId, $l);
+			if ($l->closedTime) {
+				return false;
+			}
+			$proposed = array();
+			foreach (Sharing_Engagement::forListing($l) as $e) {
+				$state = $e->getAttribute('persistedState');
+				if (in_array($state, Sharing_Engagement::$blocking, true)) {
+					throw new Q_Exception(
+						"This listing still has an accepted or active engagement; complete or cancel it before closing"
+					);
+				}
+				if ($state === 'proposed') {
+					$proposed[] = $e;
+				}
+			}
+			foreach ($proposed as $e) {
+				if (Sharing_Engagement::forceCancel($userId, $e)) {
+					$cancelled[] = $e;
+				}
+			}
+			return Streams::close($userId, $l->publisherId, $l->name, array('skipAccess' => true));
+		});
+		foreach ($cancelled as $e) {
+			Sharing_Notice::send($userId, $e, $listing, Sharing_Engagement::$messages['cancel']);
+		}
+		return (bool)$closed;
+	}
+
+	/**
+	 * Stop or resume taking responses without touching any engagement:
+	 * the recruitment switch, separate from fulfilment (audit R18). A poster
+	 * who has accepted enough helpers pauses, then completes what they
+	 * accepted; closing waits for that.
+	 * @method setPaused
+	 * @static
+	 * @param {string} $userId the publisher, or a member who may resolve
+	 * @param {string} $publisherId
+	 * @param {string} $name
+	 * @param {boolean} $paused
+	 * @return {Streams_Stream} the listing
+	 */
+	static function setPaused($userId, $publisherId, $name, $paused)
+	{
+		self::locked($publisherId, $name, function ($l) use ($userId, $paused) {
+			self::requireManager($userId, $l);
+			if ($l->closedTime) {
+				throw new Q_Exception("This listing is closed");
+			}
+			if ((bool)$l->getAttribute('paused') === (bool)$paused) {
+				return;
+			}
+			$l->setAttribute('paused', (bool)$paused);
+			$l->changed($userId);
+		});
+		return Streams_Stream::fetch($userId, $publisherId, $name, '*', array('refetch' => true));
+	}
+
+	/**
+	 * The listing's publisher manages it; a member who may resolve
+	 * engagements may too, for a listing its publisher has abandoned.
+	 * @method requireManager
+	 * @static
+	 * @throws {Users_Exception_NotAuthorized}
+	 */
+	static function requireManager($userId, $listing)
+	{
+		if (!$userId
+		or ($listing->publisherId !== $userId and !Sharing::canResolve($userId))) {
+			throw new Users_Exception_NotAuthorized();
+		}
+	}
+
+	/**
+	 * A member's own open listings, read directly rather than out of a page
+	 * of the community's.
+	 * @method ofPublisher
+	 * @static
+	 * @return {array} of Streams_Stream, newest first
+	 */
+	static function ofPublisher($userId)
+	{
+		$rows = Streams_Stream::select('*')->where(array(
+			'publisherId' => $userId,
+			'type' => self::TYPE
+		))->orderBy('insertedTime', false)->fetchDbRows();
+		$result = array();
+		foreach ($rows as $row) {
+			if (!$row->closedTime) {
+				$result[] = $row;
+			}
+		}
+		return $result;
 	}
 
 	/**
@@ -181,69 +376,131 @@ class Sharing_Listing
 		return Streams_Stream::fetch($asUserId, $listing->publisherId, self::privateName($listing->name));
 	}
 
+	/** Listings per page on the browse page. */
+	const PAGE = 50;
+
 	/**
-	 * The community's live listings, newest first.
+	 * The community's live listings, newest first: one page of them.
 	 * @method fetchAll
+	 * @static
+	 * @param {string|null} $asUserId whose access to apply
+	 * @param {array} [$options] as for page()
+	 * @return {array} of Streams_Stream
+	 */
+	static function fetchAll($asUserId, $options = array())
+	{
+		$page = self::page($asUserId, $options);
+		return $page['listings'];
+	}
+
+	/**
+	 * One page of the community's live listings, newest first.
+	 *
+	 * The filters -- direction, paused, closed, and what the reader may see
+	 * -- are applied BEFORE the page is cut (ro#586, audit R05): relations
+	 * are walked in batches, newest first, until the page is full or they
+	 * run out. Cutting first, as v1 did with a 100-relation window, let
+	 * filtered-out listings use up the window and hide live ones behind it.
+	 *
+	 * Relations are read directly rather than through Streams::related():
+	 * that only fetches streams published by the CATEGORY's publisher, so
+	 * member-published listings came back as bare relations anyway, and it
+	 * caps the offset at Streams/db/pages. The read check it made on the
+	 * category is made here.
+	 *
+	 * @method page
 	 * @static
 	 * @param {string|null} $asUserId whose access to apply
 	 * @param {array} [$options]
 	 * @param {string} [$options.direction] "offer" or "need"; omit for both
 	 * @param {boolean} [$options.includePaused=false]
-	 * @return {array} of Streams_Stream
+	 * @param {integer} [$options.limit=self::PAGE]
+	 * @param {integer} [$options.offset=0] listings to skip, counted after filtering
+	 * @return {array} array('listings' => [...], 'hasMore' => bool)
+	 * @throws {Users_Exception_NotAuthorized} if the reader cannot see the category
 	 */
-	static function fetchAll($asUserId, $options = array())
+	static function page($asUserId, $options = array())
 	{
 		$communityId = Sharing::communityId();
 		$direction = Q::ifset($options, 'direction', null);
 		$includePaused = !empty($options['includePaused']);
-		// relationsOnly, then fetch per publisher: Streams::related() only
-		// fetches related streams whose publisher is the CATEGORY's publisher
-		// (the `$r->fromPublisherId === $publisherId` filter before its
-		// Streams::fetch), so member-published listings come back as relations
-		// with no streams. This is the same reason Communities publishes events
-		// as the community. Streams::fetch() applies the reader's access.
-		$relations = Streams::related($asUserId, $communityId, self::CATEGORY, true, array(
-			'type' => self::RELATION,
-			'relationsOnly' => true,
-			// Person-published streams must not vanish behind the Assets
-			// peak-credits filter (docs/qbix-gotchas.md "invisible-users").
-			'dontFilterUsers' => true,
-			'limit' => 100
-		));
-		$namesByPublisher = array();
-		foreach ($relations as $r) {
-			$namesByPublisher[$r->fromPublisherId][] = $r->fromStreamName;
+		$limit = max(1, (int)Q::ifset($options, 'limit', self::PAGE));
+		$offset = max(0, (int)Q::ifset($options, 'offset', 0));
+		$empty = array('listings' => array(), 'hasMore' => false);
+
+		$category = Streams_Stream::fetch($asUserId, $communityId, self::CATEGORY);
+		if (!$category) {
+			return $empty;
 		}
-		$streams = array();
-		foreach ($namesByPublisher as $publisherId => $names) {
-			foreach (Streams::fetch($asUserId, $publisherId, $names) as $stream) {
-				if ($stream and $stream->testReadLevel('content')) {
-					$streams[] = $stream;
+		if (!$category->testReadLevel('relations')) {
+			throw new Users_Exception_NotAuthorized();
+		}
+
+		$wanted = $offset + $limit + 1; // one more than the page: is there a next?
+		$batch = 100;
+		$matched = array();
+		for ($from = 0; count($matched) < $wanted; $from += $batch) {
+			$relations = Streams_RelatedTo::select('fromPublisherId, fromStreamName')->where(array(
+				'toPublisherId' => $communityId,
+				'toStreamName' => self::CATEGORY,
+				'type' => self::RELATION
+			))->orderBy('weight', false)->limit($batch, $from)
+				->ignoreCache()->caching(false)->fetchAll(PDO::FETCH_ASSOC);
+			if (!$relations) {
+				break;
+			}
+			$namesByPublisher = array();
+			foreach ($relations as $r) {
+				$namesByPublisher[$r['fromPublisherId']][] = $r['fromStreamName'];
+			}
+			// Streams::fetch() applies the reader's access; keep relation order.
+			// refetch, and ignoreCache on the relations above: both caches
+			// are per request, and a page must not show a listing as it was
+			// before something earlier in the same request changed it.
+			$fetched = array();
+			foreach ($namesByPublisher as $publisherId => $names) {
+				$streams = Streams::fetch($asUserId, $publisherId, $names, '*', array('refetch' => true));
+				foreach ($streams as $name => $stream) {
+					$fetched[$publisherId][$name] = $stream;
 				}
 			}
+			foreach ($relations as $r) {
+				$stream = Q::ifset($fetched, $r['fromPublisherId'], $r['fromStreamName'], null);
+				if (self::isBrowsable($stream, $direction, $includePaused)) {
+					$matched[] = $stream;
+				}
+			}
+			if (count($relations) < $batch) {
+				break;
+			}
 		}
-		$result = array();
-		foreach ($streams as $stream) {
-			if ($stream->type !== self::TYPE) {
-				continue;
-			}
-			if ($direction and $stream->getAttribute('direction') !== $direction) {
-				continue;
-			}
-			if (!$includePaused and $stream->getAttribute('paused')) {
-				continue;
-			}
-			// Streams::close() keeps the row (and its relation) and sets
-			// closedTime; a closed listing is gone from the market.
-			if ($stream->closedTime) {
-				continue;
-			}
-			$result[] = $stream;
+		return array(
+			'listings' => array_slice($matched, $offset, $limit),
+			'hasMore' => count($matched) > $offset + $limit
+		);
+	}
+
+	/**
+	 * Whether a fetched stream belongs on the browse page.
+	 * @method isBrowsable
+	 * @static
+	 * @protected
+	 */
+	protected static function isBrowsable($stream, $direction, $includePaused)
+	{
+		if (!$stream or $stream->type !== self::TYPE or !$stream->testReadLevel('content')) {
+			return false;
 		}
-		usort($result, function ($a, $b) {
-			return strcmp($b->insertedTime, $a->insertedTime);
-		});
-		return $result;
+		if ($direction and $stream->getAttribute('direction') !== $direction) {
+			return false;
+		}
+		if (!$includePaused and $stream->getAttribute('paused')) {
+			return false;
+		}
+		// A closed listing is gone from the market (Streams::close() also
+		// drops its relation to the category; this covers a listing closed
+		// some other way).
+		return !$stream->closedTime;
 	}
 
 	/**

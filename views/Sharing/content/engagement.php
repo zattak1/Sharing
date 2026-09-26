@@ -34,6 +34,22 @@ $e = $engagement;
 	<?php if ($e['note'] !== ''): ?>
 		<blockquote class="Sharing_engagement_note"><?php echo nl2br(Q_Html::text($e['note'])) ?></blockquote>
 	<?php endif ?>
+	<?php if (!empty($e['accepted'])): $terms = $e['accepted']; ?>
+		<div class="Sharing_engagement_terms">
+			<h3><?php echo Q_Html::text($t['TermsHeading']) ?></h3>
+			<p class="Sharing_engagement_terms_title"><strong><?php echo Q_Html::text((string)Q::ifset($terms, 'title', '')) ?></strong></p>
+			<?php if ((string)Q::ifset($terms, 'content', '') !== ''): ?>
+				<p class="Sharing_engagement_terms_content"><?php echo nl2br(Q_Html::text($terms['content'])) ?></p>
+			<?php endif ?>
+			<?php if ((string)Q::ifset($terms, 'area', '') !== ''): ?>
+				<p class="Sharing_engagement_terms_area"><?php echo Q_Html::text($text['listing']['Area'] . ': ' . $terms['area']) ?></p>
+			<?php endif ?>
+			<p class="Sharing_muted"><?php echo Q_Html::text($t['TermsNote']) ?></p>
+		</div>
+	<?php endif ?>
+	<?php if (!$role && !empty($allowed)): ?>
+		<p class="Sharing_muted Sharing_resolve_note"><?php echo Q_Html::text($t['ResolveNote']) ?></p>
+	<?php endif ?>
 	<?php if (!empty($allowed)): ?>
 		<div class="Sharing_engagement_actions">
 			<?php foreach ($allowed as $verb => $to): ?>

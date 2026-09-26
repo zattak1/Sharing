@@ -93,6 +93,16 @@
 	background: rgba(128,128,128,0.12); border-left: 4px solid rgba(46,160,67,0.8);
 }
 .Sharing_engagement_private h3 { margin: 0 0 8px; font-size: 0.95em; }
+.Sharing_engagement_terms {
+	margin-top: 20px; padding: 12px 16px; border-radius: 8px;
+	background: rgba(128,128,128,0.08); border-left: 4px solid rgba(60,120,220,0.6);
+}
+.Sharing_engagement_terms h3 { margin: 0 0 8px; font-size: 0.95em; }
+.Sharing_engagement_terms p { margin: 4px 0; }
+.Sharing_listing_manage { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.Sharing_manage_hint { flex-basis: 100%; margin: 0; font-size: 0.9em; }
+.Sharing_listings_pages { display: flex; justify-content: space-between; margin-top: 16px; }
+.Sharing_listings_older { margin-left: auto; }
 .Sharing_engagement_chat { margin-top: 24px; }
 .Sharing_respond_form { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
 .Sharing_respond_form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }

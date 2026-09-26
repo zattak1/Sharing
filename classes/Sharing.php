@@ -90,8 +90,88 @@ abstract class Sharing
 		return $result;
 	}
 
+	/**
+	 * Forget the per-request label cache, e.g. after a label changes in the
+	 * same process (tests, scripts).
+	 * @method clearGateCache
+	 * @static
+	 */
+	static function clearGateCache()
+	{
+		unset(Q::$state['Sharing']);
+	}
+
 	static $gateNames = array(
-		'canCreateOffer', 'canRespondToOffer', 'canCreateNeed', 'canRespondToNeed'
+		'canCreateOffer', 'canRespondToOffer', 'canCreateNeed', 'canRespondToNeed',
+		'canResolve'
+	);
+
+	/**
+	 * The fifth gate: who may resolve an engagement neither party will
+	 * finish -- cancel one that is accepted or active and abandoned, or close
+	 * a listing on the publisher's behalf (ro#586, audit R18). Not a
+	 * direction gate, so it has no canCreate/canRespond pair.
+	 * @method canResolve
+	 * @static
+	 * @param {string|null} [$userId=null] Defaults to the logged-in user.
+	 * @return {boolean}
+	 */
+	static function canResolve($userId = null)
+	{
+		return self::hasAnyLabel('canResolve', $userId);
+	}
+
+	/**
+	 * Run $callable as a server-side Sharing write.
+	 *
+	 * The plugin's streams are guarded at the Streams layer (the
+	 * Sharing/before/guard* handlers, ro#586): outside this scope a
+	 * Sharing stream cannot be created, cannot have its attributes, access
+	 * levels or closedTime changed, cannot be related or unrelated, and takes
+	 * no message but chat. That is what makes the plugin's own methods the
+	 * only write path, whatever generic Streams handler a client reaches --
+	 * Streams/stream POST, Streams/related, Streams/form and Streams/message
+	 * all write streams they never check against this plugin's rules.
+	 *
+	 * Re-entrant; the depth is per request, and PHP serves one request per
+	 * process, so no other request can observe it.
+	 *
+	 * @method asServer
+	 * @static
+	 * @param {callable} $callable
+	 * @return {mixed} whatever $callable returns
+	 */
+	static function asServer($callable)
+	{
+		++self::$serverDepth;
+		try {
+			return call_user_func($callable);
+		} finally {
+			--self::$serverDepth;
+		}
+	}
+
+	/**
+	 * Whether a Sharing server-side write is in progress (see asServer).
+	 * @method isServerWrite
+	 * @static
+	 * @return {boolean}
+	 */
+	static function isServerWrite()
+	{
+		return self::$serverDepth > 0;
+	}
+
+	/** @property {integer} $serverDepth @protected */
+	protected static $serverDepth = 0;
+
+	/**
+	 * The stream types this plugin owns and guards.
+	 * @property {array} $types
+	 * @static
+	 */
+	static $types = array(
+		'Sharing/listing', 'Sharing/listing/private', 'Sharing/engagement', 'Sharing/notices'
 	);
 
 	protected static function gateFor($verb, $direction)

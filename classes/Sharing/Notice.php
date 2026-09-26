@@ -16,6 +16,18 @@
  * subscribe to, and the counterparty's notice is posted there. This is the
  * shape the host app already runs for class reservations.
  *
+ * The copy is in text/Sharing/content/en.json, which must stay strict JSON
+ * with no comments: the browser reads the same file with JSON.parse
+ * (Q.Text.get), and one comment there breaks every string the client asks
+ * for -- the composer does not open (ro#586). So the notes live here. Its
+ * `notifications/<message type>` subjects are looked up per message type by
+ * Streams_Message.deliver, in the RECIPIENT's language, and rendered as
+ * handlebars against the notice's instructions, so each {{...}} is a field
+ * instructions() puts there. Its `notifications/body/<verb>` sentences,
+ * with an offer/need pair where the directions read differently, are
+ * resolved when the notice is posted, not per recipient: the plugin's one
+ * piece of copy that does not follow the reader's language (ro#769).
+ *
  * @class Sharing_Notice
  */
 class Sharing_Notice
@@ -57,19 +69,25 @@ class Sharing_Notice
 			$recipients = self::recipients(
 				$byUserId, $listing->publisherId, $engagement->publisherId
 			);
-			foreach ($recipients as $userId) {
-				$stream = self::stream($userId);
-				if (!$stream) {
-					continue;
+			// The plugin's write scope: a notice stream is created, and a
+			// Sharing/* message posted on it, only from here (Sharing_Guard).
+			Sharing::asServer(function () use (
+				$recipients, $byUserId, $engagement, $listing, $messageType, &$notified
+			) {
+				foreach ($recipients as $userId) {
+					$stream = self::stream($userId);
+					if (!$stream) {
+						continue;
+					}
+					$stream->post(self::postedBy(), array(
+						'type' => $messageType,
+						'instructions' => self::instructions(
+							$byUserId, $userId, $engagement, $listing, $messageType
+						)
+					), true);
+					$notified[] = $userId;
 				}
-				$stream->post(self::postedBy(), array(
-					'type' => $messageType,
-					'instructions' => self::instructions(
-						$byUserId, $userId, $engagement, $listing, $messageType
-					)
-				), true);
-				$notified[] = $userId;
-			}
+			});
 		} catch (Exception $e) {
 			Q::log("Sharing_Notice::send: " . $e->getMessage());
 		}
@@ -201,15 +219,17 @@ class Sharing_Notice
 		if ($stream) {
 			return $stream;
 		}
-		$stream = Streams::create($userId, $userId, self::TYPE, array(
-			'name' => self::NAME
-		), array('skipAccess' => true));
-		// The stream object, not its name: it was just created, so this skips
-		// a refetch, and _getStreams() takes either.
-		Streams::subscribe($userId, $userId, $stream, array(
-			'skipAccess' => true,
-			'skipMessage' => true
-		));
-		return $stream;
+		return Sharing::asServer(function () use ($userId) {
+			$stream = Streams::create($userId, $userId, self::TYPE, array(
+				'name' => self::NAME
+			), array('skipAccess' => true));
+			// The stream object, not its name: it was just created, so this
+			// skips a refetch, and _getStreams() takes either.
+			Streams::subscribe($userId, $userId, $stream, array(
+				'skipAccess' => true,
+				'skipMessage' => true
+			));
+			return $stream;
+		});
 	}
 }

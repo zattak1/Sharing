@@ -39,6 +39,23 @@ $tabs = array(null => $t['All'], 'offer' => $t['Offers'], 'need' => $t['Needs'])
 			} ?>
 		</div>
 	<?php endif ?>
+	<?php
+		$page = isset($page) ? (int)$page : 1;
+		$pageUrl = function ($n) use ($direction) {
+			$query = array_filter(array('direction' => $direction, 'page' => $n > 1 ? $n : null));
+			return Sharing::url('sharing') . ($query ? '?' . http_build_query($query) : '');
+		};
+	?>
+	<?php if ($page > 1 || !empty($hasMore)): ?>
+		<nav class="Sharing_listings_pages">
+			<?php if ($page > 1): ?>
+				<a class="Sharing_listings_newer" href="<?php echo Q_Html::text($pageUrl($page - 1)) ?>">&larr; <?php echo Q_Html::text($t['Newer']) ?></a>
+			<?php endif ?>
+			<?php if (!empty($hasMore)): ?>
+				<a class="Sharing_listings_older" href="<?php echo Q_Html::text($pageUrl($page + 1)) ?>"><?php echo Q_Html::text($t['Older']) ?> &rarr;</a>
+			<?php endif ?>
+		</nav>
+	<?php endif ?>
 	<?php if (!$loggedIn): ?>
 		<p class="Sharing_listings_note"><?php echo Q_Html::text($t['LogInToRespond']) ?></p>
 	<?php elseif (!$canRespond): ?>

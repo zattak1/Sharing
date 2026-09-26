@@ -28,9 +28,18 @@ function Sharing_listing_response_content($params)
 	$mine = ($user && !$isPublisher) ? Sharing_Engagement::ofResponder($stream, $asUserId) : null;
 	$myEngagement = $mine ? Sharing_Engagement::export($mine) : null;
 	$myAllowed = $mine ? Sharing_Engagement::allowed($asUserId, $mine, $stream) : array();
+	// A member who may resolve (ro#586) sees the live engagements too, so an
+	// abandoned one can be cancelled and the listing paused or closed.
+	$canResolve = $user && !$isPublisher && Sharing::canResolve($asUserId);
+	$isManager = $isPublisher || $canResolve;
 	$engagements = array();
-	if ($isPublisher) {
+	if ($isManager) {
 		foreach (Sharing_Engagement::forListing($stream) as $e) {
+			if (!$isPublisher and in_array(
+				$e->getAttribute('persistedState'), Sharing_Engagement::$terminal, true
+			)) {
+				continue;
+			}
 			$engagements[] = array(
 				'engagement' => Sharing_Engagement::export($e),
 				'allowed' => Sharing_Engagement::allowed($asUserId, $e, $stream)
@@ -39,7 +48,7 @@ function Sharing_listing_response_content($params)
 	}
 	$openToResponses = $canRespond && !$mine && !$listing['paused'];
 	return Q::view('Sharing/content/listing.php', @compact(
-		'listing', 'isPublisher', 'privateInstructions', 'canRespond', 'user',
-		'myEngagement', 'myAllowed', 'engagements', 'openToResponses'
+		'listing', 'isPublisher', 'isManager', 'canResolve', 'privateInstructions',
+		'canRespond', 'user', 'myEngagement', 'myAllowed', 'engagements', 'openToResponses'
 	));
 }

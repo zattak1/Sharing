@@ -1,6 +1,7 @@
 <?php
 /**
- * One listing. Variables: $listing, $isPublisher, $privateInstructions,
+ * One listing. Variables: $listing, $isPublisher, $isManager (the publisher,
+ * or a member who may resolve), $canResolve, $privateInstructions,
  * $canRespond, $user, $myEngagement, $myAllowed, $engagements, $openToResponses.
  */
 $text = Q_Text::get('Sharing/content');
@@ -32,15 +33,19 @@ $kind = $listing['kind'];
 		<?php if ($listing['exclusive']): ?><span><?php echo Q_Html::text($t['Exclusive']) ?></span><?php endif ?>
 		<?php if ($listing['custody']): ?><span><?php echo Q_Html::text($t['Custody']) ?></span><?php endif ?>
 	</div>
-	<?php if ($isPublisher): ?>
-		<div class="Sharing_listing_private">
-			<h3><?php echo Q_Html::text($t['PrivateHeading']) ?></h3>
-			<?php if ($privateInstructions): ?>
-				<p><?php echo nl2br(Q_Html::text($privateInstructions)) ?></p>
-			<?php else: ?>
-				<p class="Sharing_muted"><?php echo Q_Html::text($t['PrivateNone']) ?></p>
-			<?php endif ?>
-		</div>
+	<?php if ($isManager): ?>
+		<?php if ($isPublisher): ?>
+			<div class="Sharing_listing_private">
+				<h3><?php echo Q_Html::text($t['PrivateHeading']) ?></h3>
+				<?php if ($privateInstructions): ?>
+					<p><?php echo nl2br(Q_Html::text($privateInstructions)) ?></p>
+				<?php else: ?>
+					<p class="Sharing_muted"><?php echo Q_Html::text($t['PrivateNone']) ?></p>
+				<?php endif ?>
+			</div>
+		<?php else: ?>
+			<p class="Sharing_muted Sharing_resolve_note"><?php echo Q_Html::text($t['ResolveNote']) ?></p>
+		<?php endif ?>
 		<div class="Sharing_listing_engagements">
 			<h3><?php echo Q_Html::text($t['Responses']) ?></h3>
 			<?php if (empty($engagements)): ?>
@@ -55,7 +60,13 @@ $kind = $listing['kind'];
 		</div>
 		<?php if (!$listing['closed']): ?>
 			<div class="Sharing_listing_manage">
+				<?php if ($listing['paused']): ?>
+					<button class="Q_button Sharing_manage_button Sharing_resume_button" data-action="resume"><?php echo Q_Html::text($t['Resume']) ?></button>
+				<?php else: ?>
+					<button class="Q_button Sharing_manage_button Sharing_pause_button" data-action="pause"><?php echo Q_Html::text($t['Pause']) ?></button>
+				<?php endif ?>
 				<button class="Q_button Sharing_close_button"><?php echo Q_Html::text($t['Close']) ?></button>
+				<p class="Sharing_muted Sharing_manage_hint"><?php echo Q_Html::text($t['PauseHint']) ?></p>
 				<div class="Sharing_close_error" hidden></div>
 			</div>
 		<?php endif ?>
