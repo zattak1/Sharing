@@ -93,6 +93,15 @@ class Sharing_Engagement
 	static $terms = array('direction', 'kind', 'exclusive', 'custody', 'area');
 
 	/**
+	 * The long terms, kept off the attributes column (1023 bytes) and on the
+	 * acceptance message (8191) instead: ro#586 audit R01.
+	 */
+	static $termsText = array('title', 'content', 'area');
+
+	/** Bytes the snapshot's text may take on the message, leaving headroom. */
+	const TERMS_TEXT_MAX = 7000;
+
+	/**
 	 * Respond to a listing.
 	 * @method propose
 	 * @static
@@ -105,6 +114,9 @@ class Sharing_Engagement
 	{
 		$quantity = max(1, (int)Q::ifset($params, 'quantity', 1));
 		$note = trim((string)Q::ifset($params, 'note', ''));
+		// The note lives in the engagement's attributes, which also take the
+		// private copy and the terms at acceptance (Sharing::$limits).
+		Sharing::requireFits('note', $note);
 		list($engagement, $listing) = Sharing_Listing::locked(
 			$listing->publisherId, $listing->name,
 			function ($listing) use ($userId, $quantity, $note) {
@@ -250,6 +262,7 @@ class Sharing_Engagement
 					throw new Q_Exception("This listing changes hands; use handOver and return");
 				}
 				$attributes = array('persistedState' => $to);
+				$instructions = array();
 				if ($verb === 'accept') {
 					// Exclusivity, against every engagement as stored now
 					// (plan §4.3). v2 adds the range condition here.
@@ -263,9 +276,14 @@ class Sharing_Engagement
 							'instructions' => $private->getAttribute('instructions')
 						);
 					}
-					$attributes['accepted'] = self::termsOf($listing, $engagement);
+					// The contract (plan §4.7): the short facts on the row,
+					// the listing's text on the acceptance message, whose
+					// instructions have room for it (ro#586 audit R01).
+					$terms = self::termsOf($listing, $engagement);
+					$attributes['accepted'] = array_diff_key($terms, array_flip(self::$termsText));
+					$instructions['terms'] = $terms;
 				}
-				self::apply($userId, $engagement, $verb, $attributes);
+				self::apply($userId, $engagement, $verb, $attributes, $instructions);
 				return array($engagement, $listing);
 			}
 		);
@@ -296,18 +314,56 @@ class Sharing_Engagement
 		return true;
 	}
 
-	protected static function apply($userId, $engagement, $verb, $attributes)
+	protected static function apply($userId, $engagement, $verb, $attributes, $instructions = array())
 	{
-		Sharing::asServer(function () use ($userId, $engagement, $verb, $attributes) {
+		// streams_stream.attributes holds 1023 bytes and its setter throws a
+		// bare Exception past that. Say so as the refusal it is, before
+		// writing anything (ro#586 audit R01; rows from before the limits).
+		$all = array_merge($engagement->getAllAttributes(), $attributes);
+		if (Sharing::encodedLength($all) > self::ATTRIBUTES_MAX) {
+			throw new Q_Exception(
+				"This response carries too much text to $verb; shorten the note or the private details"
+			);
+		}
+		Sharing::asServer(function () use ($userId, $engagement, $verb, $attributes, $instructions) {
 			foreach ($attributes as $k => $v) {
 				$engagement->setAttribute($k, $v);
 			}
 			$engagement->changed($userId);
 			Streams_Message::post($userId, $engagement->publisherId, $engagement->name, array(
 				'type' => self::$messages[$verb],
-				'instructions' => array('by' => $userId, 'state' => $attributes['persistedState'])
+				'instructions' => array_merge(
+					array('by' => $userId, 'state' => $attributes['persistedState']),
+					$instructions
+				)
 			), true);
 		});
+	}
+
+	/** Bytes streams_stream.attributes can hold. */
+	const ATTRIBUTES_MAX = 1023;
+
+	/**
+	 * What was agreed, in full: the short facts on the `accepted` attribute
+	 * merged with the listing text from the acceptance message (ro#586 audit
+	 * R01). Null before acceptance.
+	 * @method acceptedTerms
+	 * @static
+	 * @return {array|null}
+	 */
+	static function acceptedTerms($engagement)
+	{
+		$short = $engagement->getAttribute('accepted');
+		if (!is_array($short)) {
+			return null;
+		}
+		$message = Streams_Message::select('*')->where(array(
+			'publisherId' => $engagement->publisherId,
+			'streamName' => $engagement->name,
+			'type' => self::$messages['accept']
+		))->orderBy('ordinal', false)->limit(1)->fetchDbRow();
+		$terms = $message ? Q::ifset($message->getAllInstructions(), 'terms', array()) : array();
+		return array_merge(is_array($terms) ? $terms : array(), $short);
 	}
 
 	/**
@@ -320,12 +376,20 @@ class Sharing_Engagement
 	{
 		$terms = array(
 			'title' => $listing->title,
-			'content' => $listing->content,
+			'content' => (string)$listing->content,
 			'quantity' => (int)$engagement->getAttribute('quantity', 1),
 			'acceptedTime' => time()
 		);
 		foreach (self::$terms as $k) {
 			$terms[$k] = $listing->getAttribute($k);
+		}
+		// A listing written before the limits can hold more than the message
+		// takes (content is 4095 raw bytes, and escaping grows it). Accepting
+		// must not fail on that: keep the head, and say it was cut.
+		while (Sharing::encodedLength($terms) > self::TERMS_TEXT_MAX
+		and mb_strlen($terms['content']) > 0) {
+			$terms['content'] = mb_substr($terms['content'], 0, (int)(mb_strlen($terms['content']) * 0.8));
+			$terms['truncated'] = true;
 		}
 		return $terms;
 	}
@@ -659,11 +723,25 @@ class Sharing_Engagement
 		return null;
 	}
 
-	/** @method export @static */
+	/**
+	 * What a client sees of an engagement. `private` -- the listing's
+	 * handoff details, copied at acceptance -- only for the responder it
+	 * was copied to and the publisher who wrote it; a resolver acting on
+	 * the engagement does not get it (ro#586 audit R05), and neither does a
+	 * caller that names nobody.
+	 * @method export
+	 * @static
+	 * @param {Streams_Stream} $stream
+	 * @param {string|null} [$forUserId] who the export is for
+	 */
 	static function export($stream, $forUserId = null)
 	{
 		$a = $stream->getAllAttributes();
 		$listing = Q::ifset($a, 'listing', array());
+		$mayReadPrivate = $forUserId && (
+			$forUserId === $stream->publisherId
+			|| $forUserId === Q::ifset($listing, 'publisherId', null)
+		);
 		return array(
 			'publisherId' => $stream->publisherId,
 			'name' => $stream->name,
@@ -677,7 +755,7 @@ class Sharing_Engagement
 			'state' => Q::ifset($a, 'persistedState', 'proposed'),
 			'quantity' => (int)Q::ifset($a, 'quantity', 1),
 			'note' => Q::ifset($a, 'note', ''),
-			'private' => Q::ifset($a, 'private', null),
+			'private' => $mayReadPrivate ? Q::ifset($a, 'private', null) : null,
 			'accepted' => Q::ifset($a, 'accepted', null)
 		);
 	}

@@ -84,6 +84,12 @@ class Sharing_Listing
 		}
 		$content = trim((string)Q::ifset($params, 'content', ''));
 		$area = trim((string)Q::ifset($params, 'area', ''));
+		$private = trim((string)Q::ifset($params, 'private', ''));
+		// Before anything is written: each of these is later copied into a
+		// JSON column with a hard cap (Sharing::$limits, ro#586 audit R01).
+		foreach (array('title', 'content', 'area', 'private') as $field) {
+			Sharing::requireFits($field, $$field);
+		}
 
 		// Facts, not workflow (plan §1.6). Defaults follow the kind.
 		$isItem = ($kind === 'item');
@@ -101,7 +107,6 @@ class Sharing_Listing
 
 		$communityId = Sharing::communityId();
 		$category = self::category($communityId);
-		$private = trim((string)Q::ifset($params, 'private', ''));
 
 		// In the plugin's write scope: Sharing_Guard refuses to create a
 		// Sharing stream, or relate one, from anywhere else (ro#586).
@@ -182,6 +187,7 @@ class Sharing_Listing
 			$result = Sharing::asServer(function () use ($callable, $listing) {
 				return call_user_func($callable, $listing);
 			});
+			self::requireStillInTransaction();
 		} catch (Exception $e) {
 			self::rollback($where);
 			throw $e;
@@ -192,6 +198,31 @@ class Sharing_Listing
 		Streams_Stream::select('publisherId')->where($where)
 			->commit(self::LOCK_KEY)->execute();
 		return $result;
+	}
+
+	/**
+	 * Throw unless the lock's transaction is still open (ro#586 audit R04).
+	 *
+	 * Db_Query_Mysql rolls back the WHOLE nested transaction on any failed
+	 * query and zeroes its count before rethrowing. If something below
+	 * locked() catches and swallows that exception -- Streams::close() does,
+	 * around its unrelates -- the callable carries on with the listing lock
+	 * gone, its remaining writes autocommit, and the keyed commit at the end
+	 * is silently a no-op. Asking PDO is the one check that does not depend
+	 * on the query layer's bookkeeping it just reset.
+	 * @method requireStillInTransaction
+	 * @static
+	 * @protected
+	 * @throws {Q_Exception}
+	 */
+	protected static function requireStillInTransaction()
+	{
+		$pdo = Streams_Stream::db()->reallyConnect();
+		if (!$pdo or !$pdo->inTransaction()) {
+			throw new Q_Exception(
+				"The listing's lock was lost to a rolled-back query partway through; nothing after it is guaranteed, so this was refused"
+			);
+		}
 	}
 
 	/** The transaction key of the listing lock. */
@@ -257,7 +288,15 @@ class Sharing_Listing
 					$cancelled[] = $e;
 				}
 			}
-			return Streams::close($userId, $l->publisherId, $l->name, array('skipAccess' => true));
+			// unrelate/skipAccess too (ro#586 audit R02): Streams::close()
+			// unrelates what is related TO the listing with the closer's own
+			// access and swallows the refusal, so a resolver's close used to
+			// leave the relations a publisher's close removes. The decision to
+			// close was made above, under the lock; the unrelates follow it.
+			return Streams::close($userId, $l->publisherId, $l->name, array(
+				'skipAccess' => true,
+				'unrelate' => array('skipAccess' => true)
+			));
 		});
 		foreach ($cancelled as $e) {
 			Sharing_Notice::send($userId, $e, $listing, Sharing_Engagement::$messages['cancel']);

@@ -1,7 +1,7 @@
 <?php
 /**
  * One engagement. Variables: $engagement, $listing (export or null), $role,
- * $allowed, $user.
+ * $allowed, $user, $terms (Sharing_Engagement::acceptedTerms(), or null).
  */
 $text = Q_Text::get('Sharing/content');
 $t = $text['engagement'];
@@ -34,7 +34,7 @@ $e = $engagement;
 	<?php if ($e['note'] !== ''): ?>
 		<blockquote class="Sharing_engagement_note"><?php echo nl2br(Q_Html::text($e['note'])) ?></blockquote>
 	<?php endif ?>
-	<?php if (!empty($e['accepted'])): $terms = $e['accepted']; ?>
+	<?php if (!empty($terms)): ?>
 		<div class="Sharing_engagement_terms">
 			<h3><?php echo Q_Html::text($t['TermsHeading']) ?></h3>
 			<p class="Sharing_engagement_terms_title"><strong><?php echo Q_Html::text((string)Q::ifset($terms, 'title', '')) ?></strong></p>

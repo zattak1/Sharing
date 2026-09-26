@@ -68,18 +68,18 @@ Sharing.Listing = {
 				'<option value="service">' + esc(t.kind.service) + '</option>' +
 				'</select></label>' +
 				'<label>' + esc(t.TitleLabel) +
-				'<input type="text" name="title" maxlength="255" placeholder="' + esc(t.TitlePlaceholder.item) + '"></label>' +
+				'<input type="text" name="title" maxlength="200" placeholder="' + esc(t.TitlePlaceholder.item) + '"></label>' +
 				'<label>' + esc(t.Content) +
-				'<textarea name="content" rows="4" placeholder="' + esc(t.ContentPlaceholder.item) + '"></textarea></label>' +
+				'<textarea name="content" rows="4" maxlength="2000" placeholder="' + esc(t.ContentPlaceholder.item) + '"></textarea></label>' +
 				'<label>' + esc(t.Area) +
-				'<input type="text" name="area" maxlength="255" placeholder="' + esc(t.AreaPlaceholder) + '"></label>' +
+				'<input type="text" name="area" maxlength="150" placeholder="' + esc(t.AreaPlaceholder) + '"></label>' +
 				'<div class="Sharing_composer_facts">' +
 				'<label><input type="checkbox" name="exclusive" value="1" checked> ' + esc(t.Exclusive) + '</label>' +
 				'<label><input type="checkbox" name="custody" value="1" checked> ' + esc(t.Custody) + '</label>' +
 				'</div>' +
 				'<label class="Sharing_composer_private">' + esc(t.Private) +
 				'<small>' + esc(t.PrivateHint) + '</small>' +
-				'<textarea name="private" rows="3"></textarea></label>' +
+				'<textarea name="private" rows="3" maxlength="300"></textarea></label>' +
 				'<div class="Sharing_composer_error" hidden></div>' +
 				'<button type="submit" class="Q_button Sharing_composer_submit">' + esc(t.Submit) + '</button>' +
 				'</form>'

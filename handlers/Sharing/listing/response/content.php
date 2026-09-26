@@ -26,7 +26,7 @@ function Sharing_listing_response_content($params)
 	$canRespond = $user && !$isPublisher && Sharing::canRespond($listing['direction'], $asUserId);
 	// The responder's own engagement, if any; the publisher's list of all.
 	$mine = ($user && !$isPublisher) ? Sharing_Engagement::ofResponder($stream, $asUserId) : null;
-	$myEngagement = $mine ? Sharing_Engagement::export($mine) : null;
+	$myEngagement = $mine ? Sharing_Engagement::export($mine, $asUserId) : null;
 	$myAllowed = $mine ? Sharing_Engagement::allowed($asUserId, $mine, $stream) : array();
 	// A member who may resolve (ro#586) sees the live engagements too, so an
 	// abandoned one can be cancelled and the listing paused or closed.
@@ -41,7 +41,7 @@ function Sharing_listing_response_content($params)
 				continue;
 			}
 			$engagements[] = array(
-				'engagement' => Sharing_Engagement::export($e),
+				'engagement' => Sharing_Engagement::export($e, $asUserId),
 				'allowed' => Sharing_Engagement::allowed($asUserId, $e, $stream)
 			);
 		}

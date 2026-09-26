@@ -162,6 +162,59 @@ abstract class Sharing
 		return self::$serverDepth > 0;
 	}
 
+	/**
+	 * Server-side length limits, in bytes of the value as JSON-encoded
+	 * (ro#586, audit R01).
+	 *
+	 * Measured encoded, not as typed: every one of these ends up inside a
+	 * JSON column -- the engagement's attributes (1023 bytes: note, private),
+	 * the listing's attributes (area), the accepted message's instructions
+	 * (8191 bytes: title, content, area) -- and json_encode escapes a
+	 * non-ASCII character to six bytes or more. Without them an ordinary
+	 * four-paragraph description made its listing impossible to accept,
+	 * because the save threw a bare "Exceedingly long value" exception.
+	 * The composer's maxlength attributes are the matching hint.
+	 * @property {array} $limits
+	 * @static
+	 */
+	static $limits = array(
+		'title' => 255,
+		'content' => 3000,
+		'area' => 200,
+		'private' => 350,
+		'note' => 250
+	);
+
+	/**
+	 * Refuse a value longer than its limit, as a field error.
+	 * @method requireFits
+	 * @static
+	 * @param {string} $field a key of self::$limits
+	 * @param {string} $value
+	 * @throws {Q_Exception_WrongValue}
+	 */
+	static function requireFits($field, $value)
+	{
+		$max = self::$limits[$field];
+		if (self::encodedLength($value) > $max) {
+			throw new Q_Exception_WrongValue(array(
+				'field' => $field,
+				'range' => "shorter (at most about $max characters)"
+			), $field);
+		}
+	}
+
+	/**
+	 * Bytes a value takes once JSON-encoded the way Q stores it.
+	 * @method encodedLength
+	 * @static
+	 * @return {integer}
+	 */
+	static function encodedLength($value)
+	{
+		return strlen(Q::json_encode($value));
+	}
+
 	/** @property {integer} $serverDepth @protected */
 	protected static $serverDepth = 0;
 

@@ -18,11 +18,12 @@ function Sharing_engagement_response_content($params)
 		return Q::view('Sharing/content/engagementNotFound.php');
 	}
 	$listingStream = Sharing_Engagement::listingOf($stream);
-	$engagement = Sharing_Engagement::export($stream);
+	$engagement = Sharing_Engagement::export($stream, $asUserId);
+	$terms = Sharing_Engagement::acceptedTerms($stream);
 	$listing = $listingStream ? Sharing_Listing::export($listingStream) : null;
 	$role = $listingStream ? Sharing_Engagement::roleOf($asUserId, $stream, $listingStream) : null;
 	$allowed = $listingStream ? Sharing_Engagement::allowed($asUserId, $stream, $listingStream) : array();
 	return Q::view('Sharing/content/engagement.php', @compact(
-		'engagement', 'listing', 'role', 'allowed', 'user'
+		'engagement', 'listing', 'role', 'allowed', 'user', 'terms'
 	));
 }

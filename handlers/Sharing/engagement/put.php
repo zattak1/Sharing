@@ -18,5 +18,5 @@ function Sharing_engagement_put($params)
 		throw new Q_Exception_MissingRow(array('table' => 'engagement', 'criteria' => $params['engagementId']));
 	}
 	$engagement = Sharing_Engagement::transition($user->id, $engagement, $params['transition']);
-	Q_Response::setSlot('engagement', Sharing_Engagement::export($engagement));
+	Q_Response::setSlot('engagement', Sharing_Engagement::export($engagement, $user->id));
 }

@@ -82,7 +82,7 @@ $kind = $listing['kind'];
 		<form class="Sharing_respond_form">
 			<h3><?php echo Q_Html::text($t['respond'][$direction]) ?></h3>
 			<label><?php echo Q_Html::text($t['Note']) ?>
-				<textarea name="note" rows="3" placeholder="<?php echo Q_Html::text($t['NotePlaceholder'][$direction]) ?>"></textarea></label>
+				<textarea name="note" rows="3" maxlength="200" placeholder="<?php echo Q_Html::text($t['NotePlaceholder'][$direction]) ?>"></textarea></label>
 			<?php if (!$listing['exclusive']): ?>
 				<label><?php echo Q_Html::text($t['Quantity']) ?> <input type="number" name="quantity" value="1" min="1" max="20"></label>
 			<?php endif ?>
