@@ -19,5 +19,5 @@ function Sharing_engagement_post($params)
 		throw new Q_Exception_MissingRow(array('table' => 'listing', 'criteria' => $params['listingId']));
 	}
 	$engagement = Sharing_Engagement::propose($user->id, $listing, Q::take($params, array('note', 'quantity')));
-	Q_Response::setSlot('engagement', Sharing_Engagement::export($engagement));
+	Q_Response::setSlot('engagement', Sharing_Engagement::export($engagement, $user->id));
 }

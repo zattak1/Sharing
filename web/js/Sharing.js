@@ -68,18 +68,18 @@ Sharing.Listing = {
 				'<option value="service">' + esc(t.kind.service) + '</option>' +
 				'</select></label>' +
 				'<label>' + esc(t.TitleLabel) +
-				'<input type="text" name="title" maxlength="255" placeholder="' + esc(t.TitlePlaceholder.item) + '"></label>' +
+				'<input type="text" name="title" maxlength="200" placeholder="' + esc(t.TitlePlaceholder.item) + '"></label>' +
 				'<label>' + esc(t.Content) +
-				'<textarea name="content" rows="4" placeholder="' + esc(t.ContentPlaceholder.item) + '"></textarea></label>' +
+				'<textarea name="content" rows="4" maxlength="2000" placeholder="' + esc(t.ContentPlaceholder.item) + '"></textarea></label>' +
 				'<label>' + esc(t.Area) +
-				'<input type="text" name="area" maxlength="255" placeholder="' + esc(t.AreaPlaceholder) + '"></label>' +
+				'<input type="text" name="area" maxlength="150" placeholder="' + esc(t.AreaPlaceholder) + '"></label>' +
 				'<div class="Sharing_composer_facts">' +
 				'<label><input type="checkbox" name="exclusive" value="1" checked> ' + esc(t.Exclusive) + '</label>' +
 				'<label><input type="checkbox" name="custody" value="1" checked> ' + esc(t.Custody) + '</label>' +
 				'</div>' +
 				'<label class="Sharing_composer_private">' + esc(t.Private) +
 				'<small>' + esc(t.PrivateHint) + '</small>' +
-				'<textarea name="private" rows="3"></textarea></label>' +
+				'<textarea name="private" rows="3" maxlength="300"></textarea></label>' +
 				'<div class="Sharing_composer_error" hidden></div>' +
 				'<button type="submit" class="Q_button Sharing_composer_submit">' + esc(t.Submit) + '</button>' +
 				'</form>'
@@ -203,11 +203,23 @@ function bindTransitions() {
 	});
 }
 
+/**
+ * Pause, resume or close a listing through the plugin's own PUT, which does
+ * it under the listing's lock (ro#586). The generic Streams/stream DELETE is
+ * refused for listings: close is false in config.
+ */
+function manageListing($holder, action, callback) {
+	Q.req('Sharing/listing', ['stream'], function (err, data) {
+		Q.handle(callback, Sharing, [Q.firstErrorMessage(err, data)]);
+	}, {method: 'put', fields: {
+		publisherId: $holder.attr('data-publisherId'),
+		listingId: $holder.attr('data-streamName').replace(/^Sharing\/listing\//, ''),
+		action: action
+	}});
+}
+
 Q.page('Sharing/listing', function () {
 	bindTransitions();
-	// Close goes through the generic Streams/stream DELETE, whose access
-	// check the publisher passes; the plugin's before-close hook refuses
-	// while an engagement is accepted or active and cancels proposed ones.
 	$('.Sharing_close_button').on(Q.Pointer.fastclick, true, function () {
 		var $button = $(this);
 		var $holder = $button.closest('[data-streamName]');
@@ -218,18 +230,30 @@ Q.page('Sharing/listing', function () {
 			}
 			$error.prop('hidden', true);
 			$button.prop('disabled', true).text(text.listing.Closing);
-			Q.req('Streams/stream', ['result'], function (err, data) {
-				var msg = Q.firstErrorMessage(err, data);
+			manageListing($holder, 'close', function (msg) {
 				if (msg) {
 					$button.prop('disabled', false).text(text.listing.Close);
 					$error.text(msg).prop('hidden', false);
 					return;
 				}
 				Q.handle(Q.url('sharing'));
-			}, {method: 'delete', fields: {
-				publisherId: $holder.attr('data-publisherId'),
-				streamName: $holder.attr('data-streamName')
-			}});
+			});
+		});
+		return false;
+	});
+	$('.Sharing_manage_button').on(Q.Pointer.fastclick, true, function () {
+		var $button = $(this);
+		var $holder = $button.closest('[data-streamName]');
+		var $error = $button.siblings('.Sharing_close_error');
+		$error.prop('hidden', true);
+		$button.prop('disabled', true);
+		manageListing($holder, $button.attr('data-action'), function (msg) {
+			if (msg) {
+				$button.prop('disabled', false);
+				$error.text(msg).prop('hidden', false);
+				return;
+			}
+			Q.handle(window.location.href);
 		});
 		return false;
 	});

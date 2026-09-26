@@ -1,11 +1,5 @@
 {
 	"notifications": {
-		/*
-			Subjects are looked up per message type by
-			Streams_Message.deliver, in the RECIPIENT's language, and rendered
-			as handlebars against the notice's instructions -- so {{...}} here
-			is a field Sharing_Notice put there.
-		*/
 		"Sharing/engagement/proposed": "{{displayName}} responded to \"{{listingTitle}}\"",
 		"Sharing/engagement/accepted": "{{displayName}} accepted your response to \"{{listingTitle}}\"",
 		"Sharing/engagement/rejected": "{{displayName}} declined your response to \"{{listingTitle}}\"",
@@ -16,15 +10,6 @@
 		"Sharing/engagement/completed": "\"{{listingTitle}}\" is complete",
 		"View": "See the details",
 		"Why": "You are getting this because you posted or responded to a listing in this community. Open the listing to stop following it.",
-		/*
-			The one event-specific sentence in the notice body, keyed by the
-			transition verb. Where the two directions read differently -- being
-			accepted as a borrower is not the same as being accepted as a
-			helper -- the verb takes an offer/need pair. Unlike the subjects
-			above these are resolved when the notice is posted, not per
-			recipient, so they are the plugin's one piece of copy that does not
-			follow the reader's language (ro#769).
-		*/
 		"body": {
 			"propose": {
 				"offer": "{{displayName}} would like to borrow what you are offering.",
@@ -55,7 +40,9 @@
 			"need": "Nobody has asked for help yet."
 		},
 		"LogInToRespond": "Log in to respond to a listing.",
-		"CannotRespond": "Your role in this community does not allow responding to listings yet."
+		"CannotRespond": "Your role in this community does not allow responding to listings yet.",
+		"Older": "Older listings",
+		"Newer": "Newer listings"
 	},
 	"listing": {
 		"Back": "All listings",
@@ -92,7 +79,11 @@
 		"Closed": "Closed",
 		"Close": "Close this listing",
 		"CloseConfirm": "Close this listing? Proposed responses will be cancelled.",
-		"Closing": "Closing…"
+		"Closing": "Closing…",
+		"Pause": "Stop taking responses",
+		"Resume": "Take responses again",
+		"PauseHint": "Have enough? Stop taking responses and keep what you accepted. Close the listing once those are complete.",
+		"ResolveNote": "You are seeing this as a community admin: you can cancel an engagement a member has abandoned, or pause or close the listing."
 	},
 	"composer": {
 		"Title": "Post a listing",
@@ -134,6 +125,9 @@
 		"NotFound": "That engagement does not exist or you cannot see it.",
 		"PrivateHeading": "Private details from the publisher",
 		"PrivateAfterAccept": "Once accepted, you will see the private details here.",
+		"TermsHeading": "What was agreed",
+		"TermsNote": "The listing as it stood when this was accepted. Later edits to the listing do not change it.",
+		"ResolveNote": "You are seeing this as a community admin: you can cancel it if a member has abandoned it.",
 		"state": {
 			"proposed": "Proposed",
 			"accepted": "Accepted",

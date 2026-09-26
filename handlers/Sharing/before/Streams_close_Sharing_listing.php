@@ -1,34 +1,21 @@
 <?php
 /**
- * Closing a listing (plan §4.5): refuse while an engagement is accepted or
- * active — the publisher must resolve it first — otherwise cancel every
- * proposed engagement, then let the close proceed. For a need, this is also
- * how the poster says "I have enough helpers" in v1.
+ * Closing a listing happens only through Sharing_Listing::close() (ro#586,
+ * audit R04): that takes the listing's lock, refuses while an engagement is
+ * accepted or active, cancels the proposed ones and closes the stream in one
+ * transaction. The type is close:false, so the generic Streams/stream DELETE
+ * never gets here; this refuses any other caller of Streams::close() -- a
+ * script, another plugin -- that would close a listing without that guard.
  * @event Streams/close/Sharing/listing {before}
  * @param {array} $params
  * @param {Streams_Stream} $params.stream
  */
 function Sharing_before_Streams_close_Sharing_listing($params)
 {
-	$listing = $params['stream'];
-	$user = Users::loggedInUser(false, false);
-	$byUserId = $user ? $user->id : $listing->publisherId;
-	$open = array();
-	$proposed = array();
-	foreach (Sharing_Engagement::forListing($listing) as $e) {
-		$state = $e->getAttribute('persistedState');
-		if (in_array($state, Sharing_Engagement::$blocking, true)) {
-			$open[] = $e;
-		} else if ($state === 'proposed') {
-			$proposed[] = $e;
-		}
+	if (Sharing::isServerWrite()) {
+		return;
 	}
-	if ($open) {
-		throw new Q_Exception(
-			"This listing still has an accepted or active engagement; complete or cancel it before closing"
-		);
-	}
-	foreach ($proposed as $e) {
-		Sharing_Engagement::forceCancel($byUserId, $e);
-	}
+	throw new Users_Exception_NotAuthorized(
+		"Close a listing through Sharing_Listing::close(), which checks its engagements under the listing's lock"
+	);
 }

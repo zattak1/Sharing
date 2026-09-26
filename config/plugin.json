@@ -14,9 +14,43 @@
 				"connections": []
 			}
 		},
+		/*
+			Sharing_Guard (ro#586): the plugin's own methods are the only write
+			path to its streams. Generic Streams handlers write streams without
+			asking a type's rules -- Streams/related never access-checks the
+			related stream, Streams/form checks nothing, Streams/message ignores
+			post: true -- so the rules sit on the events every write passes
+			through, for every type the plugin owns. A type added to the plugin
+			needs its line in each of these, which SharingPermissionModelTest
+			in the ro repo checks.
+		*/
 		"handlersBeforeEvent": {
 			"Q/responseExtras": ["Sharing/before/Q_responseExtras"],
-			"Streams/close/Sharing/listing": ["Sharing/before/Streams_close_Sharing_listing"]
+			"Streams/close/Sharing/listing": ["Sharing/before/Streams_close_Sharing_listing"],
+			"Streams/Stream/save/Sharing/listing": ["Sharing/before/guardSave"],
+			"Streams/Stream/save/Sharing/listing/private": ["Sharing/before/guardSave"],
+			"Streams/Stream/save/Sharing/engagement": ["Sharing/before/guardSave"],
+			"Streams/Stream/save/Sharing/notices": ["Sharing/before/guardSave"],
+			"Streams/relateTo/Sharing/listing": ["Sharing/before/guardRelation"],
+			"Streams/relateTo/Sharing/listing/private": ["Sharing/before/guardRelation"],
+			"Streams/relateTo/Sharing/engagement": ["Sharing/before/guardRelation"],
+			"Streams/relateTo/Sharing/notices": ["Sharing/before/guardRelation"],
+			"Streams/relateFrom/Sharing/listing": ["Sharing/before/guardRelation"],
+			"Streams/relateFrom/Sharing/listing/private": ["Sharing/before/guardRelation"],
+			"Streams/relateFrom/Sharing/engagement": ["Sharing/before/guardRelation"],
+			"Streams/relateFrom/Sharing/notices": ["Sharing/before/guardRelation"],
+			"Streams/unrelateTo/Sharing/listing": ["Sharing/before/guardRelation"],
+			"Streams/unrelateTo/Sharing/listing/private": ["Sharing/before/guardRelation"],
+			"Streams/unrelateTo/Sharing/engagement": ["Sharing/before/guardRelation"],
+			"Streams/unrelateTo/Sharing/notices": ["Sharing/before/guardRelation"],
+			"Streams/unrelateFrom/Sharing/listing": ["Sharing/before/guardRelation"],
+			"Streams/unrelateFrom/Sharing/listing/private": ["Sharing/before/guardRelation"],
+			"Streams/unrelateFrom/Sharing/engagement": ["Sharing/before/guardRelation"],
+			"Streams/unrelateFrom/Sharing/notices": ["Sharing/before/guardRelation"],
+			"Streams/post/Sharing/listing": ["Sharing/before/guardPost"],
+			"Streams/post/Sharing/listing/private": ["Sharing/before/guardPost"],
+			"Streams/post/Sharing/engagement": ["Sharing/before/guardPost"],
+			"Streams/post/Sharing/notices": ["Sharing/before/guardPost"]
 		},
 		/*
 			Pages in "routes", the API in "routes@end". Q_Uri::url() walks the
@@ -57,7 +91,13 @@
 			"canCreateOffer": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
 			"canRespondToOffer": ["Users/owners", "Users/admins", "Users/members"],
 			"canCreateNeed": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
-			"canRespondToNeed": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"]
+			"canRespondToNeed": ["Users/owners", "Users/admins", "Users/members", "Users/teachers"],
+			/*
+				Who may resolve what a party abandoned (ro#586): cancel an
+				accepted or active engagement, pause or close someone else's
+				listing. Not a direction gate.
+			*/
+			"canResolve": ["Users/owners", "Users/admins"]
 		}
 	},
 	"Streams": {
@@ -86,19 +126,26 @@
 		"types": {
 			/*
 				Sharing/listing: readLevel 30 = Streams::$READ_LEVEL['participants'],
-				writeLevel 23 = Streams::$WRITE_LEVEL['relate'] -- members can see
-				a listing and relate an engagement to it; only the publisher
-				edits, and only title and content through the generic path.
-				Attributes (direction, kind, exclusive, custody, ...) change
-				only through Sharing/listing/put, which can refuse changes that
-				would invalidate live engagements. Config cannot hold the named
-				constants, so the numbers are annotated here and code must use
-				the names.
+				writeLevel 23 = Streams::$WRITE_LEVEL['relate']. Members can see
+				a listing; the relate level is kept for existing rows, but since
+				ro#586 no relation to a listing is made outside the plugin
+				(Sharing_Guard), so it grants nothing an engagement needs. Only
+				the publisher edits, and only title and content through the
+				generic path; what was agreed is snapshotted onto the engagement
+				at acceptance, so an edit cannot change it. Attributes (paused,
+				direction, kind, ...) change only in the plugin.
+
+				create: false -- Sharing_Listing::create() applies the label
+				gates and validates the attributes; the generic POST would take
+				whatever attributes and access levels the caller sent (ro#586,
+				audit R03). close: false -- Sharing/listing/put closes under the
+				listing's lock. Config cannot hold the named constants, so the
+				numbers are annotated here and code must use the names.
 			*/
 			"Sharing/listing": {
 				"emoji": "🤝",
-				"create": true,
-				"close": true,
+				"create": false,
+				"close": false,
 				"edit": ["title", "content"],
 				"defaults": {
 					"title": "Untitled listing",
@@ -113,7 +160,10 @@
 						engagement, so the type has to declare it -- an
 						undeclared message type has no description or subject
 						of its own. Not post: true: like every other lifecycle
-						message it is posted server-side.
+						message it is posted server-side. Streams/message POST
+						does not read post: true -- it takes any type declared
+						with a truthy entry -- so what keeps clients out is
+						Sharing/before/guardPost.
 					*/
 					"Sharing/engagement/proposed": {
 						"description": "Someone responded to a listing"
@@ -140,15 +190,17 @@
 				}
 			},
 			/*
-				Sharing/engagement: edit is false because Streams/stream/put
-				sets every attribute the client sends, and the publisher here
-				is the responder, who must not be able to write
-				persistedState. Every change goes through
-				Sharing_Engagement::transition(). Close is false too:
-				cancellation is a transition, not a close. None of the
-				state-changing messages carries post: true -- transition()
+				Sharing/engagement: create is false because the generic POST
+				would let a responder start one in any state, with any listing
+				attribute, as its owner (ro#586, audit R03); propose() is the
+				only way in. edit is false because Streams/stream/put sets every
+				attribute the client sends, and the publisher here is the
+				responder, who must not be able to write persistedState. Every
+				change goes through Sharing_Engagement::transition(). Close is
+				false too: cancellation is a transition, not a close. None of
+				the state-changing messages carries post: true -- transition()
 				posts them server-side after validating; only chat is
-				client-postable.
+				client-postable, and Sharing/before/guardPost enforces that.
 			*/
 			/*
 				One notice stream per user, which they publish and subscribe
@@ -220,7 +272,7 @@
 			},
 			"Sharing/engagement": {
 				"emoji": "📨",
-				"create": true,
+				"create": false,
 				"close": false,
 				"edit": false,
 				"defaults": {

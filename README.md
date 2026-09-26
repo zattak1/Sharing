@@ -25,3 +25,16 @@ delivery runs off `Streams_Subscription` and nobody subscribes to an engagement
 stream type, its subject keys and its delivery rule — is pinned by
 `infra/tests-php/tests/Unit/SharingNoticeConfigTest.php` in the `ro` repo,
 which mounts a checkout of this repository found beside the main one.
+
+The plugin's own methods are the only write path to its streams
+([ro#586](https://github.com/zattak1/ro/issues/586)): `Sharing_Guard`
+(`classes/Sharing/Guard.php`) sits on the Streams save, relate/unrelate, post
+and close events for every Sharing type and refuses any write made outside
+`Sharing::asServer()`, because several generic Streams handlers write streams
+without reading a type's `create`/`edit`/`post` config. Every decision that
+reads engagement state -- propose, each transition, pause, close -- runs under
+the listing's row lock (`Sharing_Listing::locked()`) against state re-read
+under it. Pause/resume/close go through `PUT Q/plugins/Sharing/listing`.
+`text/Sharing/content/en.json` must stay strict JSON: the browser parses it.
+Tests: `infra/tests-php/tests/{Unit,Integration}/Sharing*` and
+`infra/tests/smoke/yoga.flows.sharing.spec.ts` in the `ro` repo.
