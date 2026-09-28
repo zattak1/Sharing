@@ -47,10 +47,23 @@
 			"Streams/unrelateFrom/Sharing/listing/private": ["Sharing/before/guardRelation"],
 			"Streams/unrelateFrom/Sharing/engagement": ["Sharing/before/guardRelation"],
 			"Streams/unrelateFrom/Sharing/notices": ["Sharing/before/guardRelation"],
-			"Streams/post/Sharing/listing": ["Sharing/before/guardPost"],
-			"Streams/post/Sharing/listing/private": ["Sharing/before/guardPost"],
-			"Streams/post/Sharing/engagement": ["Sharing/before/guardPost"],
-			"Streams/post/Sharing/notices": ["Sharing/before/guardPost"]
+			"Streams/post/Sharing/listing": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
+			"Streams/post/Sharing/listing/private": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
+			"Streams/post/Sharing/engagement": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
+			"Streams/post/Sharing/notices": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
+			"Streams/message/Streams/unrelatedTo": ["Sharing/before/holdNode"]
+		},
+		/*
+			ro#863: postMessages() calls node before it returns, which inside
+			the listing lock is before the COMMIT. holdNode (above) stops that
+			while the lock is held, for posts on a Sharing stream and for the
+			Streams/unrelatedTo that close() posts on the community category;
+			outside a lock it does nothing. This keeps what would have been
+			sent, and Sharing_Listing::locked() sends it once the COMMIT
+			returns -- or drops it on a rollback.
+		*/
+		"handlersAfterEvent": {
+			"Streams/postMessages": ["Sharing/after/Streams_postMessages"]
 		},
 		/*
 			Pages in "routes", the API in "routes@end". Q_Uri::url() walks the

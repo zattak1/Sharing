@@ -330,6 +330,8 @@ class Sharing_Engagement
 				$engagement->setAttribute($k, $v);
 			}
 			$engagement->changed($userId);
+			// The record, in the lock's transaction; its node call waits for
+			// the COMMIT (Sharing_Listing::locked(), ro#863).
 			Streams_Message::post($userId, $engagement->publisherId, $engagement->name, array(
 				'type' => self::$messages[$verb],
 				'instructions' => array_merge(

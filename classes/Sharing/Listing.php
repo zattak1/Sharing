@@ -163,6 +163,18 @@ class Sharing_Listing
 	 * Sharing writer goes through here, so none of them can hold an
 	 * engagement and wait for its listing.
 	 *
+	 * Node hears about it after the COMMIT, not before (ro#863). Messages
+	 * posted on a Sharing stream while the lock is held are written in the
+	 * transaction -- they are the record, and roll back with it -- but
+	 * Streams_Message::postMessages() would also call node for them before
+	 * returning, which inside this transaction is before anything is
+	 * committed: sockets would hear of a decision that could still roll back,
+	 * and with node down every decision would hold this row for the call's
+	 * one-second timeout. So those calls are held (holdNode) and sent from
+	 * here once the COMMIT has returned, and dropped if it never does. The
+	 * after-handlers postMessages runs stay inside: they are database work
+	 * that has to commit or roll back with the message.
+	 *
 	 * @method locked
 	 * @static
 	 * @param {string} $publisherId
@@ -178,6 +190,12 @@ class Sharing_Listing
 			->begin('FOR UPDATE', self::LOCK_KEY)
 			->caching(false)
 			->fetchDbRow();
+		// Only the outermost lock owns the held node calls; the plugin never
+		// nests locked(), but if it did, the inner COMMIT is not the real one.
+		$owner = (self::$heldForNode === null);
+		if ($owner) {
+			self::$heldForNode = array();
+		}
 		try {
 			if (!$listing or $listing->type !== self::TYPE) {
 				throw new Q_Exception_MissingRow(array(
@@ -189,15 +207,163 @@ class Sharing_Listing
 			});
 			self::requireStillInTransaction();
 		} catch (Exception $e) {
+			self::dropHeld($owner);
 			self::rollback($where);
 			throw $e;
 		} catch (Throwable $e) {
+			self::dropHeld($owner);
 			self::rollback($where);
 			throw $e;
 		}
-		Streams_Stream::select('publisherId')->where($where)
-			->commit(self::LOCK_KEY)->execute();
+		try {
+			Streams_Stream::select('publisherId')->where($where)
+				->commit(self::LOCK_KEY)->execute();
+		} catch (Exception $e) {
+			self::dropHeld($owner);
+			throw $e;
+		}
+		if ($owner) {
+			$held = self::$heldForNode;
+			self::dropHeld(true);
+			self::sendHeld($held);
+		}
 		return $result;
+	}
+
+	/**
+	 * Node calls for messages posted under the lock, waiting for its COMMIT
+	 * (ro#863). Null when no lock is held.
+	 * @property $heldForNode
+	 * @type {array|null}
+	 * @static
+	 * @protected
+	 */
+	protected static $heldForNode = null;
+
+	/**
+	 * Streams/post/<Sharing type> and Streams/message/Streams/unrelatedTo
+	 * {before} (see holdsNodeFor): while a listing lock is held,
+	 * stop postMessages() from calling node itself (it exposes the flag by
+	 * reference for this), so the call can be made after the COMMIT. Outside
+	 * a lock -- a notice, a chat message -- nothing changes.
+	 * @method holdNode
+	 * @static
+	 * @param {array} $params the event's params; $params['sendToNode'] is a reference
+	 */
+	static function holdNode($params)
+	{
+		if (self::$heldForNode === null or !array_key_exists('sendToNode', $params)) {
+			return;
+		}
+		$params['sendToNode'] = false;
+	}
+
+	/** The handler that holds a type's node calls, as config registers it. */
+	const HOLD_HANDLER = 'Sharing/before/holdNode';
+
+	/**
+	 * Streams/postMessages {after}: if this batch's node call was held, keep
+	 * exactly what postMessages() would have sent -- every row it inserted,
+	 * and the streams, exported the same way -- for after the COMMIT.
+	 *
+	 * A batch was held when it posted a message holdNode is registered for
+	 * (holdsNodeFor): that handler ran for it and cleared the flag. This
+	 * is read off the batch rather than from a flag holdNode sets, because
+	 * postMessages() nests -- its after-handlers can post -- and an inner
+	 * batch would consume a shared flag before the outer one got here.
+	 * @method holdPosted
+	 * @static
+	 * @param {array} $posted publisherId => streamName => array of Streams_Message
+	 * @param {array} $streams publisherId => streamName => Streams_Stream
+	 */
+	static function holdPosted($posted, $streams)
+	{
+		if (self::$heldForNode === null) {
+			return;
+		}
+		$rows = array();
+		$held = false;
+		foreach ((array)$posted as $publisherId => $arr) {
+			foreach ((array)$arr as $streamName => $messages) {
+				foreach ((array)$messages as $message) {
+					if (!($message instanceof Streams_Message)) {
+						continue;
+					}
+					$rows[] = $message->fields;
+					$stream = Q::ifset($streams, $publisherId, $streamName, null);
+					if (self::holdsNodeFor($stream ? $stream->type : null, $message->type)) {
+						$held = true;
+					}
+				}
+			}
+		}
+		if (!$held) {
+			return;
+		}
+		self::$heldForNode[] = array(
+			"Q/method" => "Streams/Message/postMessages",
+			"posted" => Q::json_encode($rows),
+			"streams" => Q::json_encode(Db::exportArray($streams, array("skipAccess" => true)))
+		);
+	}
+
+	/**
+	 * Whether posting this message runs holdNode: config registers it on
+	 * the Streams/post event of every Sharing stream type, and on the
+	 * Streams/message event of the one platform message a decision posts on
+	 * a stream that is not the plugin's (close() unrelating the listing from
+	 * its community category).
+	 * @method holdsNodeFor
+	 * @static
+	 * @param {string|null} $streamType
+	 * @param {string} $messageType
+	 * @return {boolean}
+	 */
+	static function holdsNodeFor($streamType, $messageType)
+	{
+		$events = array("Streams/message/$messageType");
+		if ($streamType) {
+			$events[] = "Streams/post/$streamType";
+		}
+		foreach ($events as $event) {
+			$handlers = Q_Config::get('Q', 'handlersBeforeEvent', $event, array());
+			if (in_array(self::HOLD_HANDLER, (array)$handlers, true)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Forget the held node calls: the transaction they describe rolled back.
+	 * @method dropHeld
+	 * @static
+	 * @protected
+	 */
+	protected static function dropHeld($owner)
+	{
+		if ($owner) {
+			self::$heldForNode = null;
+		}
+	}
+
+	/**
+	 * Send the held node calls, now that what they describe is committed.
+	 * A failure here is logged: the decision stands, and a missed socket
+	 * update is what a node outage already means everywhere else.
+	 * @method sendHeld
+	 * @static
+	 * @protected
+	 */
+	protected static function sendHeld($held)
+	{
+		foreach ($held as $data) {
+			try {
+				Q_Utils::sendToNode($data);
+			} catch (Exception $e) {
+				Q::log("Sharing_Listing: node call after commit failed: " . $e->getMessage());
+			}
+		}
 	}
 
 	/**
