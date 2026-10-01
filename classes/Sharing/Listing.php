@@ -173,7 +173,10 @@ class Sharing_Listing
 	 * one-second timeout. So those calls are held (holdNode) and sent from
 	 * here once the COMMIT has returned, and dropped if it never does. The
 	 * after-handlers postMessages runs stay inside: they are database work
-	 * that has to commit or roll back with the message.
+	 * that has to commit or roll back with the message. Node calls made
+	 * directly under the lock -- the Streams/Stream/create that announces
+	 * propose()'s new engagement -- are held the same way, by switching the
+	 * transport off for the lock's duration (holdDirectNode, ro#868).
 	 *
 	 * @method locked
 	 * @static
@@ -195,6 +198,7 @@ class Sharing_Listing
 		$owner = (self::$heldForNode === null);
 		if ($owner) {
 			self::$heldForNode = array();
+			$transport = self::switchNodeOff();
 		}
 		try {
 			if (!$listing or $listing->type !== self::TYPE) {
@@ -214,6 +218,10 @@ class Sharing_Listing
 			self::dropHeld($owner);
 			self::rollback($where);
 			throw $e;
+		} finally {
+			if ($owner) {
+				self::switchNodeOn($transport);
+			}
 		}
 		try {
 			Streams_Stream::select('publisherId')->where($where)
@@ -260,6 +268,86 @@ class Sharing_Listing
 
 	/** The handler that holds a type's node calls, as config registers it. */
 	const HOLD_HANDLER = 'Sharing/before/holdNode';
+
+	/**
+	 * Q/Utils/sendToNode {before}: while a listing lock is held, keep the
+	 * call to make after the COMMIT (ro#868).
+	 *
+	 * holdNode covers postMessages(), which exposes a flag. Other node calls
+	 * made under the lock have none -- Streams_Stream::afterSaveExecute()
+	 * announces the engagement propose() creates with a direct
+	 * sendToNode(Streams/Stream/create) -- and sendToNode() ignores what its
+	 * {before} handlers return. So locked() switches the transport off for
+	 * as long as the lock is held (switchNodeOff), every call that reaches
+	 * sendToNode in that window finds no socket and no host and sends
+	 * nothing, and this keeps its payload: it goes out after the COMMIT, in
+	 * the order it was made, with the held postMessages calls, or is dropped
+	 * on a rollback.
+	 * @method holdDirectNode
+	 * @static
+	 * @param {array} $params the event's params: data, url, options
+	 */
+	static function holdDirectNode($params)
+	{
+		if (self::$heldForNode === null or self::$nodeTransport === null) {
+			return;
+		}
+		$data = Q::ifset($params, 'data', null);
+		if (is_array($data) and !empty($data['Q/method'])) {
+			self::$heldForNode[] = $data;
+		}
+	}
+
+	/**
+	 * A socket path that does not exist. sendToNode() tries the configured
+	 * socket only if the file exists, and TCP only if host and port are set.
+	 */
+	const NO_NODE_SOCKET = '/nonexistent/Sharing/held-until-commit.sock';
+
+	/**
+	 * Q/nodeInternal as it was before switchNodeOff, wrapped so a missing
+	 * key (array(null)) is told apart from no lock (null).
+	 * @property $nodeTransport
+	 * @type {array|null}
+	 * @static
+	 * @protected
+	 */
+	protected static $nodeTransport = null;
+
+	/**
+	 * Point Q/nodeInternal at nothing while the lock is held, so a direct
+	 * sendToNode() under the lock sends nothing (holdDirectNode keeps it).
+	 * Only Q_Utils::sendToNode() and queryInternal() read this key in the
+	 * code a Sharing decision runs; queryInternal() is never called under
+	 * the lock.
+	 * @method switchNodeOff
+	 * @static
+	 * @protected
+	 * @return {array} what switchNodeOn restores
+	 */
+	protected static function switchNodeOff()
+	{
+		$saved = array(Q_Config::get('Q', 'nodeInternal', null));
+		self::$nodeTransport = $saved;
+		Q_Config::set('Q', 'nodeInternal', array('socket' => self::NO_NODE_SOCKET));
+		return $saved;
+	}
+
+	/**
+	 * Undo switchNodeOff, whether the lock committed or rolled back.
+	 * @method switchNodeOn
+	 * @static
+	 * @protected
+	 */
+	protected static function switchNodeOn($saved)
+	{
+		self::$nodeTransport = null;
+		if ($saved[0] === null) {
+			Q_Config::clear('Q', 'nodeInternal');
+		} else {
+			Q_Config::set('Q', 'nodeInternal', $saved[0]);
+		}
+	}
 
 	/**
 	 * Streams/postMessages {after}: if this batch's node call was held, keep

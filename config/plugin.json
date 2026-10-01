@@ -51,7 +51,8 @@
 			"Streams/post/Sharing/listing/private": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
 			"Streams/post/Sharing/engagement": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
 			"Streams/post/Sharing/notices": ["Sharing/before/guardPost", "Sharing/before/holdNode"],
-			"Streams/message/Streams/unrelatedTo": ["Sharing/before/holdNode"]
+			"Streams/message/Streams/unrelatedTo": ["Sharing/before/holdNode"],
+			"Q/Utils/sendToNode": ["Sharing/before/Q_Utils_sendToNode"]
 		},
 		/*
 			ro#863: postMessages() calls node before it returns, which inside
@@ -61,6 +62,13 @@
 			outside a lock it does nothing. This keeps what would have been
 			sent, and Sharing_Listing::locked() sends it once the COMMIT
 			returns -- or drops it on a rollback.
+
+			ro#868: a node call made directly under the lock (propose()'s
+			Streams/Stream/create, from Streams_Stream::afterSaveExecute) has no
+			flag to clear, and sendToNode() ignores its {before} result. So
+			locked() points Q/nodeInternal at nothing while the lock is held,
+			and Sharing/before/Q_Utils_sendToNode keeps each such call for the
+			same after-COMMIT send.
 		*/
 		"handlersAfterEvent": {
 			"Streams/postMessages": ["Sharing/after/Streams_postMessages"]
