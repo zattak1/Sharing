@@ -37,7 +37,10 @@ the listing's row lock (`Sharing_Listing::locked()`) against state re-read
 under it. Messages posted under that lock are written in its transaction,
 but their node call (socket broadcast, delivery) is held and made only after
 the COMMIT, and dropped on a rollback
-([ro#863](https://github.com/zattak1/ro/issues/863)). Pause/resume/close go through `PUT Q/plugins/Sharing/listing`.
+([ro#863](https://github.com/zattak1/ro/issues/863)). So is every other
+node call made under the lock, such as the `Streams/Stream/create` announcing
+a new engagement: the lock switches `Q/nodeInternal` off while it is held
+([ro#868](https://github.com/zattak1/ro/issues/868)). Pause/resume/close go through `PUT Q/plugins/Sharing/listing`.
 `text/Sharing/content/en.json` must stay strict JSON: the browser parses it.
 Tests: `infra/tests-php/tests/{Unit,Integration}/Sharing*` and
 `infra/tests/smoke/yoga.flows.sharing.spec.ts` in the `ro` repo.
